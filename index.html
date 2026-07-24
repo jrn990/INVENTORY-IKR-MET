@@ -8,13 +8,15 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900 font-sans text-sm">
+<body class="bg-slate-100 min-h-screen text-slate-900 font-sans text-sm">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
         const ITEMS = ['ONT ZTE', 'ONT HUAWEI', 'STB ZTE', 'STB NAVICOM', 'STB TRANSVISION', 'STB HOMATIC', 'STB FIBERHOME'];
+        const TECHNICIANS = ['PUTRA-SONY', 'EKO-RIYAN', 'NADI-PARI', 'ARIP', 'NOVAN-GOBY', 'PERI-ROBIN', 'TEDI-DODI', 'DODi-DANIEL-TEDI', 'RAHMAN-FAJAR', 'IQBAL-ARDI', 'RIO-ARI', 'AGUS'];
         const CABLE_ITEMS = ['DTFIBER - CABLE PRECON SC/UPC-SC/APC - 75MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 125MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 175MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 225MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 300MTR'];
 
         function App() {
@@ -31,15 +33,15 @@
                 try {
                     const res = await fetch(scriptUrl);
                     const json = await res.json();
-                    if(json.master) setMasterData(json.master.slice(1).map(r => ({item: r[0], sn: r[1]})));
-                    if(json.outbound) setOutboundData(json.outbound.slice(1).map(r => ({id: r[0], namaTeknisi: r[2], sn: r[3], namaBarang: r[4], kabelPrecon: r[5]})));
-                    if(json.cables) setCableStockInbound(json.cables.slice(1).map(r => ({item: r[1], qty: Number(r[2])})));
-                } catch(e) { console.error("Error fetching data:", e); }
+                    if(json.master) setMasterData(json.master.slice(1).map(r => ({item: r[0], sn: r[1], code: r[2]})));
+                    if(json.outbound) setOutboundData(json.outbound.slice(1).map(r => ({id: r[0], waktuScan: r[1], namaTeknisi: r[2], sn: r[3], namaBarang: r[4], kabelPrecon: r[5], keterangan: r[6], status: r[7]})));
+                    if(json.cables) setCableStockInbound(json.cables.slice(1).map(r => ({id: r[0], item: r[1], qty: Number(r[2])})));
+                } catch(e) { console.error(e); }
             };
 
-            // Panggil fetchData setiap kali halaman dimuat (dependencies di-set [scriptUrl])
-            useEffect(() => { fetchData(); }, [scriptUrl]);
+            useEffect(() => { if (scriptUrl) fetchData(); }, [scriptUrl]);
 
+            // Hitung Stok SN (ONT/STB)
             const snStock = useMemo(() => {
                 const counts = {};
                 ITEMS.forEach(i => counts[i] = 0);
@@ -47,6 +49,7 @@
                 return counts;
             }, [masterData]);
 
+            // Hitung Stok Kabel
             const cableStockSummary = useMemo(() => {
                 const summary = {};
                 CABLE_ITEMS.forEach(item => {
@@ -57,56 +60,85 @@
                 return summary;
             }, [cableStockInbound, outboundData]);
 
+            const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
+            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
             const handleDelete = async (id) => {
                 if(!confirm("Hapus data?")) return;
                 const newData = outboundData.filter(d => d.id !== id);
                 setOutboundData(newData);
-                await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveOutbound", rows: [["ID", "Waktu", "Teknisi", "SN", "Barang", "Kabel", "Ket", "Status"], ...newData.map(d => [d.id, "Auto", d.namaTeknisi, d.sn, d.namaBarang, d.kabelPrecon, "Hapus", "BELUM"])] }) });
+                await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveOutbound", rows: [["ID", "Waktu", "Teknisi", "SN", "Barang", "Kabel", "Ket", "Status"], ...newData.map(d => [d.id, d.waktuScan, d.namaTeknisi, d.sn, d.namaBarang, d.kabelPrecon, d.keterangan, d.status])] }) });
             };
 
-            if (!scriptUrl) return (
-                <div className="p-10 text-center max-w-sm mx-auto mt-20 bg-white p-6 rounded-xl shadow-lg border">
-                    <h2 className="font-bold text-lg mb-4">Masukkan URL Google Script</h2>
-                    <input className="border w-full p-2 mb-4 rounded" onChange={(e) => setScriptUrl(e.target.value)} placeholder="https://script.google.com/..." />
-                    <button onClick={() => { localStorage.setItem('gs_url', scriptUrl); window.location.reload(); }} className="bg-blue-600 text-white w-full py-2 rounded font-bold">Simpan & Masuk</button>
-                </div>
-            );
-
-            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+            if (!scriptUrl) return <div className="p-10 text-center font-bold">Masukkan URL Google Script di LocalStorage.</div>;
 
             return (
                 <div className="p-4 max-w-7xl mx-auto">
                     <div className="flex gap-2 mb-4 bg-white p-2 rounded-lg shadow-sm overflow-x-auto">
-                        {['dashboard', 'scan'].map(tab => (
+                        {['dashboard', 'scan', 'master', 'report-admin'].map(tab => (
                             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md font-bold whitespace-nowrap ${activeTab === tab ? 'bg-blue-600 text-white' : 'hover:bg-slate-100'}`}>
                                 {tab.toUpperCase()}
                             </button>
                         ))}
-                        <button onClick={fetchData} className="ml-auto bg-slate-800 text-white px-4 py-2 rounded-md font-bold hover:bg-slate-700">Refresh Data</button>
                     </div>
 
                     {activeTab === 'dashboard' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white p-6 rounded-xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Stok SN</h3>{Object.keys(snStock).map(i => <div key={i} className="flex justify-between py-2 border-b">{<span>{i}</span>}<span className="font-bold text-blue-600">{snStock[i]} Unit</span></div>)}</div>
-                            <div className="bg-white p-6 rounded-xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Stok Kabel</h3>{Object.keys(cableStockSummary).map(i => <div key={i} className="flex justify-between py-2 border-b">{<span className="truncate w-3/4 text-xs">{i.split('-').pop()}</span>}<span className="font-bold text-emerald-600">{cableStockSummary[i]} Pcs</span></div>)}</div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm">
+                                <h3 className="font-bold text-lg mb-4">Sisa Stok Material SN</h3>
+                                {Object.keys(snStock).map(item => (
+                                    <div key={item} className="flex justify-between py-2 border-b">
+                                        <span>{item}</span>
+                                        <span className="font-bold text-blue-600">{snStock[item]} Unit</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm">
+                                <h3 className="font-bold text-lg mb-4">Sisa Stok Kabel</h3>
+                                {Object.keys(cableStockSummary).map(item => (
+                                    <div key={item} className="flex justify-between py-2 border-b">
+                                        <span className="truncate text-xs">{item.split(' - ')[2]}</span>
+                                        <span className="font-bold text-emerald-600">{cableStockSummary[item]} Pcs</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
                     {activeTab === 'scan' && (
-                        <div className="bg-white p-4 rounded-xl shadow-sm border">
-                            <h2 className="font-bold text-lg mb-4">Riwayat Barang Keluar ({outboundData.length})</h2>
-                            <table className="w-full table-fixed text-sm border-collapse">
-                                <thead><tr className="bg-slate-100 text-left"><th className="p-2 w-20">Teknisi</th><th className="p-2 w-24">SN</th><th className="p-2 w-auto">Barang</th><th className="p-2 w-16 text-center">Aksi</th></tr></thead>
-                                <tbody>
-                                    {paginatedOutbound.map(d => (
-                                        <tr key={d.id} className="border-b hover:bg-slate-50"><td className="p-2 truncate font-bold">{d.namaTeknisi}</td><td className="p-2 truncate font-mono text-xs">{d.sn}</td><td className="p-2 truncate">{d.namaBarang}</td><td className="p-2 text-center"><button onClick={() => handleDelete(d.id)} className="text-red-600 font-bold">🗑️</button></td></tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="font-bold text-lg">Riwayat Barang Keluar</h2>
+                                <span className="text-sm">Total: {outboundData.length}</span>
+                            </div>
+                            <div className="overflow-hidden">
+                                <table className="w-full table-fixed text-xs md:text-sm border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-100 text-left">
+                                            <th className="p-2 w-20 truncate">Teknisi</th>
+                                            <th className="p-2 w-24 truncate">SN / Ket</th>
+                                            <th className="p-2 w-auto truncate">Barang</th>
+                                            <th className="p-2 w-16 truncate text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedOutbound.map(d => (
+                                            <tr key={d.id} className="border-b hover:bg-slate-50">
+                                                <td className="p-2 truncate font-bold">{d.namaTeknisi}</td>
+                                                <td className="p-2 truncate font-mono">{d.sn !== '-' ? d.sn : d.keterangan}</td>
+                                                <td className="p-2 truncate">{d.namaBarang} {d.kabelPrecon !== '-' ? `(${d.kabelPrecon})` : ''}</td>
+                                                <td className="p-2 text-center">
+                                                    <button onClick={() => handleDelete(d.id)} className="text-red-600 font-bold hover:bg-red-50 p-1 rounded">🗑️</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                             <div className="mt-4 flex justify-center gap-2">
-                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Prev</button>
-                                <span className="font-bold p-1">{currentPage} / {Math.ceil(outboundData.length / ITEMS_PER_PAGE) || 1}</span>
-                                <button disabled={currentPage >= Math.ceil(outboundData.length / ITEMS_PER_PAGE)} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Next</button>
+                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p-1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Prev</button>
+                                <span className="font-bold p-1">{currentPage} / {totalPages || 1}</span>
+                                <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Next</button>
                             </div>
                         </div>
                     )}
@@ -117,3 +149,4 @@
     </script>
 </body>
 </html>
+```eof
