@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Inventory Gudang</title>
+    <title>Sistem Inventory Gudang Full</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -16,6 +16,7 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
         const ITEMS = ['ONT ZTE', 'ONT HUAWEI', 'STB ZTE', 'STB NAVICOM', 'STB TRANSVISION', 'STB HOMATIC', 'STB FIBERHOME'];
+        const TECHNICIANS = ['PUTRA-SONY', 'EKO-RIYAN', 'NADI-PARI', 'ARIP', 'NOVAN-GOBY', 'PERI-ROBIN', 'TEDI-DODI', 'DODi-DANIEL-TEDI', 'RAHMAN-FAJAR', 'IQBAL-ARDI', 'RIO-ARI', 'AGUS'];
         const CABLE_ITEMS = ['DTFIBER - CABLE PRECON SC/UPC-SC/APC - 75MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 125MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 175MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 225MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 300MTR'];
 
         function App() {
@@ -24,6 +25,8 @@
             const [masterData, setMasterData] = useState([]);
             const [outboundData, setOutboundData] = useState([]);
             const [cableStockInbound, setCableStockInbound] = useState([]);
+            
+            // Pagination state
             const [currentPage, setCurrentPage] = useState(1);
             const ITEMS_PER_PAGE = 50;
 
@@ -40,6 +43,10 @@
 
             useEffect(() => { if (scriptUrl) fetchData(); }, [scriptUrl]);
 
+            // Pagination Logic
+            const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
+            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
             const handleDelete = async (id) => {
                 if(!confirm("Hapus data ini?")) return;
                 const newData = outboundData.filter(d => d.id !== id);
@@ -47,17 +54,11 @@
                 await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveOutbound", rows: [["ID", "Waktu", "Teknisi", "SN", "Barang", "Kabel", "Ket", "Status"], ...newData.map(d => [d.id, d.waktuScan, d.namaTeknisi, d.sn, d.namaBarang, d.kabelPrecon, d.keterangan, d.status])] }) });
             };
 
-            const snStock = useMemo(() => {
-                const counts = {};
-                ITEMS.forEach(i => counts[i] = 0);
-                masterData.forEach(d => { if(counts[d.item] !== undefined) counts[d.item]++; });
-                return counts;
-            }, [masterData]);
-
-            const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
-            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-            if (!scriptUrl) return <div className="p-10 text-center"><h2 className="font-bold">Masukkan URL di LocalStorage</h2><input className="border p-2 mt-2 w-full max-w-sm" onChange={(e)=>setScriptUrl(e.target.value)} /><button className="bg-blue-600 text-white p-2 mt-2" onClick={()=>localStorage.setItem('gs_url', scriptUrl) || window.location.reload()}>Simpan</button></div>;
+            if (!scriptUrl) return (
+                <div className="p-10 text-center"><h2 className="font-bold">Masukkan URL di LocalStorage</h2>
+                <input className="border p-2 mt-2 w-full max-w-sm" onChange={(e)=>setScriptUrl(e.target.value)} />
+                <button className="bg-blue-600 text-white p-2 mt-2" onClick={()=>localStorage.setItem('gs_url', scriptUrl) || window.location.reload()}>Simpan</button></div>
+            );
 
             return (
                 <div className="p-4 max-w-7xl mx-auto">
@@ -70,12 +71,9 @@
                         <button onClick={fetchData} className="ml-auto bg-slate-800 text-white px-4 py-2 rounded-md font-bold text-xs">Sync Data</button>
                     </div>
 
-                    {activeTab === 'dashboard' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white p-6 rounded-xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Stok Material SN</h3>{Object.keys(snStock).map(i => <div key={i} className="flex justify-between py-2 border-b"><span>{i}</span><span className="font-bold text-blue-600">{snStock[i]} Unit</span></div>)}</div>
-                            <div className="bg-white p-6 rounded-xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Ringkasan Riwayat</h3><p>Total Barang Keluar: {outboundData.length}</p><p>Total Data Master: {masterData.length}</p></div>
-                        </div>
-                    )}
+                    {activeTab === 'dashboard' && <div className="p-10 text-center font-bold bg-white border rounded-xl">Dashboard Aktif</div>}
+                    {activeTab === 'master' && <div className="p-10 text-center font-bold bg-white border rounded-xl">Master Data Aktif</div>}
+                    {activeTab === 'report-admin' && <div className="p-10 text-center font-bold bg-white border rounded-xl">Laporan Admin Aktif</div>}
 
                     {activeTab === 'scan' && (
                         <div className="bg-white p-4 rounded-xl shadow-sm border">
@@ -105,14 +103,12 @@
                                 </table>
                             </div>
                             <div className="mt-4 flex justify-center gap-2">
-                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p-1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Prev</button>
+                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p-1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50 font-bold">Prev</button>
                                 <span className="font-bold p-1">{currentPage} / {totalPages || 1}</span>
-                                <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Next</button>
+                                <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50 font-bold">Next</button>
                             </div>
                         </div>
                     )}
-                    {activeTab === 'master' && <div className="p-10 text-center font-bold">Fitur Master Data Aktif</div>}
-                    {activeTab === 'report-admin' && <div className="p-10 text-center font-bold">Fitur Laporan Aktif</div>}
                 </div>
             );
         }
