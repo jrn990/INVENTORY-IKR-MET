@@ -3,197 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Inventory Gudang Lengkap</title>
-    <!-- Tailwind CSS Play CDN -->
     <title>Sistem Inventory Gudang</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM CDN -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel Standalone for JSX compilation in browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- SheetJS for Excel Export -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <style>
-        @media print {
-            body { background: white !important; color: black !important; }
-            no-print, header, nav, button { display: none !important; }
-            .print-container { width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important; }
-        }
-    </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-900 font-sans">
-<body class="bg-slate-100 min-h-screen text-slate-900 font-sans text-sm">
+<body class="bg-slate-50 min-h-screen text-slate-900 font-sans text-sm">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
-
         const ITEMS = ['ONT ZTE', 'ONT HUAWEI', 'STB ZTE', 'STB NAVICOM', 'STB TRANSVISION', 'STB HOMATIC', 'STB FIBERHOME'];
-        const TECHNICIANS = ['PUTRA-SONY', 'EKO-RIYAN', 'NADI-PARI', 'ARIP-AGUS', 'NOVAN-GOBY', 'PERI-ROBIN', 'TEDI-DODI', 'DODi-DANIEL-TEDI', 'RAHMAN-FAJAR', 'IQBAL-ARDI', 'RIO-ARI', 'AGUS'];
-        const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-        const CABLE_ITEMS = [
-          'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 75MTR',
-          'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 125MTR',
-          'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 175MTR',
-          'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 225MTR',
-          'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 300MTR'
-        ];
-
-        const IconDashboard = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-5zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5z"/></svg>;
-        const IconPackage = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>;
-        const IconSearch = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35"/></svg>;
-        const IconUsers = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>;
-        const IconPlus = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>;
-        const IconUpload = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>;
-        const IconChart = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 20V10M12 20V4M6 20v-6"/></svg>;
-        const IconExchange = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>;
-        const IconLayers = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2l10 5-10 5-10-5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>;
-        const IconClose = () => <svg className="w-6 h-6 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>;
-        const IconTrash = () => <svg className="w-5 h-5 inline text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>;
         const CABLE_ITEMS = ['DTFIBER - CABLE PRECON SC/UPC-SC/APC - 75MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 125MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 175MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 225MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 300MTR'];
 
         function App() {
-          const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem('gs_url') || '');
-          const [tempUrl, setTempUrl] = useState('');
-          const [activeTab, setActiveTab] = useState('dashboard');
-          
-          const [masterData, setMasterData] = useState([]);
-          const [outboundData, setOutboundData] = useState([]);
-          const [cableStockInbound, setCableStockInbound] = useState([]);
-          
-          const [selectedTech, setSelectedTech] = useState(TECHNICIANS[0]);
-          const [scanSn, setScanSn] = useState('');
-          const [manualItem, setManualItem] = useState(CABLE_ITEMS[0]);
-          const [manualQty, setManualQty] = useState('');
-          const [newCableItem, setNewCableItem] = useState(CABLE_ITEMS[0]);
-          const [newCableQty, setNewCableQty] = useState('');
-          const [showImport, setShowImport] = useState(false);
-          const [importData, setImportData] = useState('');
-          
-          // Report States
-          const [reportType, setReportType] = useState('bulanan');
-          const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0]);
-          const [reportMonth, setReportMonth] = useState(new Date().getMonth());
-          const [reportYear, setReportYear] = useState(new Date().getFullYear());
-          const [reportWeek, setReportWeek] = useState(1);
-          const [reportTech, setReportTech] = useState(TECHNICIANS[0]);
-
-          const [toast, setToast] = useState(null);
-          const [isLoading, setIsLoading] = useState(false);
-
-          const showMessage = (msg, type = 'success') => {
-            setToast({ msg, type });
-            setTimeout(() => setToast(null), 4000);
-          };
-
-          const saveUrl = (e) => {
-            e.preventDefault();
-            if (!tempUrl.trim()) return;
-            localStorage.setItem('gs_url', tempUrl.trim());
-            setScriptUrl(tempUrl.trim());
-            showMessage('URL Google Sheet berhasil disimpan!');
-          };
-
-          const fetchData = async () => {
-            if (!scriptUrl) return;
-            setIsLoading(true);
-            try {
-              const res = await fetch(scriptUrl);
-              const json = await res.json();
-              
-              if (json.master && json.master.length > 1) {
-                const loadedMaster = json.master.slice(1).map(row => ({
-                  item: row[0], sn: row[1], code: row[2], dateAdded: row[3] || new Date().toISOString()
-                })).filter(d => d.sn);
-                setMasterData(loadedMaster);
-              }
-
-              if (json.outbound && json.outbound.length > 1) {
-                const loadedOut = json.outbound.slice(1).map(row => ({
-                  id: row[0], waktuScan: row[1], namaTeknisi: row[2], sn: row[3], namaBarang: row[4], kabelPrecon: row[5], keterangan: row[6], status: row[7] || 'BELUM', month: Number(row[8]), week: Number(row[9]), qty: Number(row[10]), unit: row[11]
-                })).filter(d => d.id);
-                setOutboundData(loadedOut);
-              }
-
-              if (json.cables && json.cables.length > 1) {
-                const loadedCables = json.cables.slice(1).map(row => ({
-                  id: row[0], item: row[1], qty: Number(row[2]), date: row[3]
-                })).filter(d => d.id);
-                if (loadedCables.length > 0) setCableStockInbound(loadedCables);
-              }
-            } catch (err) {
-              console.error("Fetch error", err);
-              showMessage('Gagal memuat data. Periksa URL Apps Script.', 'error');
-            }
-            setIsLoading(false);
-          };
-
-          useEffect(() => {
-            if (scriptUrl) fetchData();
-          }, [scriptUrl]);
-
-          const syncMasterToSheet = async (newMaster) => {
-            if (!scriptUrl) return;
-            const rows = [["Item", "SN", "Code", "DateAdded"]];
-            newMaster.forEach(d => rows.push([d.item, d.sn, d.code, d.dateAdded]));
-            await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveMaster", rows }) });
-          };
-
-          const syncOutboundToSheet = async (newOut) => {
-            if (!scriptUrl) return;
-            const rows = [["ID", "WaktuScan", "Teknisi", "SN", "Barang", "Kabel", "Ket", "Status", "Month", "Week", "Qty", "Unit"]];
-            newOut.forEach(d => rows.push([d.id, d.waktuScan, d.namaTeknisi, d.sn, d.namaBarang, d.kabelPrecon, d.keterangan, d.status, d.month, d.week, d.qty, d.unit]));
-            await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveOutbound", rows }) });
-          };
-
-          const syncCablesToSheet = async (newCables) => {
-            if (!scriptUrl) return;
-            const rows = [["ID", "Item", "Qty", "Date"]];
-            newCables.forEach(c => rows.push([c.id, c.item, c.qty, c.date]));
-            await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveCables", rows }) });
-          };
-
-          const handleScan = async (e) => {
-            e.preventDefault();
-            if (!scanSn.trim()) return;
-            const snToFind = scanSn.trim().toUpperCase().replace(/\s+/g, "");
-
-            let foundIndex = masterData.findIndex(d => d.sn.replace(/\s+/g, "") === snToFind);
-            if (foundIndex === -1) {
-              foundIndex = masterData.findIndex(d => d.sn.replace(/\s+/g, "").includes(snToFind) || snToFind.includes(d.sn.replace(/\s+/g, "")));
-            }
-
-            if (foundIndex === -1) {
-              showMessage(`SN "${scanSn}" tidak ditemukan di Master Data!`, 'error');
-              setScanSn('');
-              return;
-            }
-
-            const itemData = masterData[foundIndex];
-            const now = new Date();
-            const newOut = {
-              id: Date.now().toString(),
-              waktuScan: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`,
-              namaTeknisi: selectedTech,
-              sn: itemData.sn,
-              namaBarang: itemData.item,
-              kabelPrecon: '-',
-              keterangan: itemData.code || '-',
-              status: 'BELUM',
-              month: now.getMonth(),
-              week: Math.ceil((now.getDate() + new Date(now.getFullYear(), now.getMonth(), 1).getDay()) / 7),
-              qty: 1,
-              unit: 'Unit'
             const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem('gs_url') || '');
-            const [activeTab, setActiveTab] = useState('dashboard');
+            const [activeTab, setActiveTab] = useState('scan');
             const [masterData, setMasterData] = useState([]);
             const [outboundData, setOutboundData] = useState([]);
-            const [cableStockInbound, setCableStockInbound] = useState([]);
             const [currentPage, setCurrentPage] = useState(1);
             const ITEMS_PER_PAGE = 50;
 
-            // Fetch Data
             const fetchData = async () => {
                 if (!scriptUrl) return;
                 try {
@@ -201,73 +33,11 @@
                     const json = await res.json();
                     if(json.master) setMasterData(json.master.slice(1).map(r => ({item: r[0], sn: r[1], code: r[2]})));
                     if(json.outbound) setOutboundData(json.outbound.slice(1).map(r => ({id: r[0], waktuScan: r[1], namaTeknisi: r[2], sn: r[3], namaBarang: r[4], kabelPrecon: r[5], keterangan: r[6], status: r[7]})));
-                    if(json.cables) setCableStockInbound(json.cables.slice(1).map(r => ({id: r[0], item: r[1], qty: Number(r[2])})));
-                } catch(e) { console.error(e); }
+                } catch(e) { console.error("Error fetching"); }
             };
 
-            const updatedMaster = [...masterData];
-            updatedMaster.splice(foundIndex, 1);
-            const updatedOut = [newOut, ...outboundData];
-
-            setMasterData(updatedMaster);
-            setOutboundData(updatedOut);
-            
-            await syncMasterToSheet(updatedMaster);
-            await syncOutboundToSheet(updatedOut);
-
-            showMessage(`Berhasil! ${itemData.item} ditugaskan ke ${selectedTech}.`);
-            setScanSn('');
-          };
-
-          const handleManualAdd = async (e) => {
-            e.preventDefault();
-            if (!manualQty || isNaN(manualQty) || Number(manualQty) <= 0) {
-              showMessage('Masukkan jumlah Pcs yang valid!', 'error');
-              return;
-            }
-
-            const qtyToAdd = Number(manualQty);
-            const now = new Date();
-            const newOutbounds = [];
-            const totalOut = outboundData.filter(d => d.kabelPrecon === manualItem).length;
-
-            for (let i = 0; i < qtyToAdd; i++) {
-              newOutbounds.push({
-                id: `${Date.now()}-${i}-${Math.random()}`,
-                waktuScan: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`,
-                namaTeknisi: selectedTech,
-                sn: '-',
-                namaBarang: 'Kabel Precon',
-                kabelPrecon: manualItem,
-                keterangan: `Roll ${totalOut + i + 1}`,
-                status: 'BELUM',
-                month: now.getMonth(),
-                week: Math.ceil((now.getDate() + new Date(now.getFullYear(), now.getMonth(), 1).getDay()) / 7),
-                qty: 1,
-                unit: 'Pcs'
-              });
-            }
             useEffect(() => { if (scriptUrl) fetchData(); }, [scriptUrl]);
 
-            const updatedOut = [...newOutbounds, ...outboundData];
-            setOutboundData(updatedOut);
-            await syncOutboundToSheet(updatedOut);
-            showMessage(`Berhasil mencatat ${qtyToAdd} Pcs ${manualItem}.`);
-            setManualQty('');
-          };
-            // Pagination Logic
-            const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
-            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-          const handleAddCableInbound = async (e) => {
-            e.preventDefault();
-            if (!newCableQty || isNaN(newCableQty) || Number(newCableQty) <= 0) return;
-
-            const newEntry = {
-              id: Date.now().toString(),
-              item: newCableItem,
-              qty: Number(newCableQty),
-              date: new Date().toISOString()
             const handleDelete = async (id) => {
                 if(!confirm("Hapus data ini?")) return;
                 const newData = outboundData.filter(d => d.id !== id);
@@ -275,639 +45,60 @@
                 await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveOutbound", rows: [["ID", "Waktu", "Teknisi", "SN", "Barang", "Kabel", "Ket", "Status"], ...newData.map(d => [d.id, d.waktuScan, d.namaTeknisi, d.sn, d.namaBarang, d.kabelPrecon, d.keterangan, d.status])] }) });
             };
 
-            const updatedCables = [newEntry, ...cableStockInbound];
-            setCableStockInbound(updatedCables);
-            await syncCablesToSheet(updatedCables);
-            showMessage(`Berhasil menambah stok kabel.`);
-            setNewCableQty('');
-          };
+            const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
+            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-          const handleDeleteOutbound = async (id) => {
-            const itemToDelete = outboundData.find(d => d.id === id);
-            if (!itemToDelete) return;
+            if (!scriptUrl) return <div className="p-10 text-center"><h2 className="font-bold">Masukkan URL di LocalStorage</h2><input className="border p-2 mt-2 w-full max-w-sm" onChange={(e)=>setScriptUrl(e.target.value)} /><button className="bg-blue-600 text-white p-2 mt-2" onClick={()=>localStorage.setItem('gs_url', scriptUrl) || window.location.reload()}>Simpan</button></div>;
 
-            if (!confirm(`Hapus data barang keluar untuk teknisi ${itemToDelete.namaTeknisi}?`)) return;
-
-            const updatedOutbound = outboundData.filter(d => d.id !== id);
-            setOutboundData(updatedOutbound);
-
-            let updatedMaster = [...masterData];
-            if (itemToDelete.sn && itemToDelete.sn !== '-') {
-              updatedMaster = [{
-                item: itemToDelete.namaBarang,
-                sn: itemToDelete.sn,
-                code: itemToDelete.keterangan !== '-' && !itemToDelete.keterangan.startsWith('Roll') ? itemToDelete.keterangan : '-',
-                dateAdded: new Date().toISOString()
-              }, ...updatedMaster];
-              setMasterData(updatedMaster);
-              await syncMasterToSheet(updatedMaster);
-            }
-
-            await syncOutboundToSheet(updatedOutbound);
-            showMessage('Data berhasil dihapus' + (itemToDelete.sn !== '-' ? ' & SN dikembalikan ke Gudang.' : '.'));
-          };
-
-          const handleBulkImport = async () => {
-            if (!importData.trim()) return;
-            const rows = importData.trim().split('\n');
-            let addedCount = 0;
-            const newData = [];
-
-            rows.forEach(row => {
-              if (!row.trim()) return;
-              const cols = row.split(/\t+|\s{2,}/).map(c => c.trim()).filter(Boolean);
-              if (cols.length >= 1) {
-                let item = 'MATERIAL GUDANG', sn = '', code = '-';
-                if (cols.length >= 3) {
-                  if (cols[0].toUpperCase().startsWith('DN')) { code = cols[0]; item = cols[1]; sn = cols[2]; }
-                  else { item = cols[0]; sn = cols[1]; code = cols[2]; }
-                } else if (cols.length === 2) { item = cols[0]; sn = cols[1]; }
-                else if (cols.length === 1) { sn = cols[0]; }
-
-                if (sn && sn !== '-') {
-                  newData.push({ sn: sn.toUpperCase(), item: item.toUpperCase(), code: code.toUpperCase(), dateAdded: new Date().toISOString() });
-                  addedCount++;
-                }
-              }
-            });
-
-            if (newData.length > 0) {
-              const updatedMaster = [...newData, ...masterData];
-              setMasterData(updatedMaster);
-              await syncMasterToSheet(updatedMaster);
-              showMessage(`Berhasil import ${addedCount} data SN ke Google Sheet!`);
-            } else {
-              showMessage('Format data tidak dikenali.', 'error');
-            if (!scriptUrl) {
-                return (
-                    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-                        <div className="bg-white p-8 rounded-2xl w-full max-w-sm">
-                            <h2 className="text-xl font-bold mb-4">Masukkan URL Google Sheet</h2>
-                            <input type="text" onChange={(e) => localStorage.setItem('gs_url', e.target.value)} className="w-full border p-2 mb-4 rounded"/>
-                            <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white py-2 rounded">Simpan & Muat</button>
-                        </div>
-                    </div>
-                );
-            }
-            setImportData('');
-            setShowImport(false);
-          };
-
-          const updateStatus = async (id, newStatus) => {
-            const updated = outboundData.map(item => item.id === id ? { ...item, status: newStatus } : item);
-            setOutboundData(updated);
-            await syncOutboundToSheet(updated);
-            showMessage(`Status diperbarui menjadi ${newStatus}.`);
-          };
-
-          const filteredReportData = useMemo(() => {
-            return outboundData.filter(d => {
-              if (!d.waktuScan) return false;
-              const datePart = d.waktuScan.split(' ')[0];
-              const [y, m] = datePart.split('-').map(Number);
-
-              if (reportType === 'harian') {
-                return datePart === reportDate;
-              } else if (reportType === 'mingguan') {
-                return (m - 1) === reportMonth && y === reportYear && Number(d.week) === Number(reportWeek);
-              } else {
-                return (m - 1) === reportMonth && y === reportYear;
-              }
-            });
-          }, [outboundData, reportType, reportDate, reportMonth, reportYear, reportWeek]);
-
-          const reportAdminStats = useMemo(() => {
-            const stats = {};
-            ITEMS.forEach(i => stats[i] = { total: 0, install: 0, belum: 0, return: 0, unit: 'Unit' });
-            CABLE_ITEMS.forEach(c => stats[c] = { total: 0, install: 0, belum: 0, return: 0, unit: 'Pcs' });
-            
-            filteredReportData.forEach(d => {
-              const itemName = d.namaBarang === 'Kabel Precon' ? d.kabelPrecon : d.namaBarang;
-              const itemQty = d.qty || 1;
-              const itemUnit = d.unit || (d.namaBarang === 'Kabel Precon' ? 'Pcs' : 'Unit');
-
-              if (!stats[itemName]) stats[itemName] = { total: 0, install: 0, belum: 0, return: 0, unit: itemUnit };
-              
-              stats[itemName].total += itemQty;
-              if (d.status === 'INSTALL') stats[itemName].install += itemQty;
-              else if (d.status === 'RETURN') stats[itemName].return += itemQty;
-              else stats[itemName].belum += itemQty;
-            });
-            return stats;
-          }, [filteredReportData]);
-
-          const exportToExcel = () => {
-            const exportRows = filteredReportData.map((d, index) => ({
-              No: index + 1,
-              "Waktu Scan": d.waktuScan,
-              Teknisi: d.namaTeknisi,
-              "Serial Number (SN)": d.sn,
-              "Nama Barang": d.namaBarang,
-              "Kabel Precon": d.kabelPrecon,
-              "No WO / Keterangan": d.keterangan,
-              "Status Instalasi": d.status
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(exportRows);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Inventory");
-            XLSX.writeFile(workbook, `Laporan_${reportType.toUpperCase()}_${new Date().toISOString().split('T')[0]}.xlsx`);
-            showMessage('Berhasil mendownload file Excel!');
-          };
-
-          const exportToPDF = () => { window.print(); };
-
-          const cableStockSummary = useMemo(() => {
-            const summary = {};
-            CABLE_ITEMS.forEach(item => {
-              const totalMasuk = cableStockInbound.filter(c => c.item === item).reduce((sum, cur) => sum + cur.qty, 0);
-              const totalKeluar = outboundData.filter(d => d.kabelPrecon === item).reduce((sum, cur) => sum + (cur.qty || 0), 0);
-              summary[item] = { masuk: totalMasuk, keluar: totalKeluar, sisa: totalMasuk - totalKeluar };
-            });
-            return summary;
-          }, [cableStockInbound, outboundData]);
-
-          if (!scriptUrl) {
             return (
-              <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-                <form onSubmit={saveUrl} className="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-4">
-                  <h2 className="text-2xl font-black text-slate-800">Hubungkan ke Google Sheet</h2>
-                  <p className="text-sm text-slate-600">Masukkan URL Web App Google Apps Script:</p>
-                  <input type="text" value={tempUrl} onChange={e => setTempUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" className="w-full border-2 border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-blue-500 font-mono"/>
-                  <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">Simpan & Hubungkan</button>
-                </form>
-              </div>
-            );
-          }
+                <div className="p-4 max-w-7xl mx-auto">
+                    <div className="flex gap-2 mb-4 bg-white p-2 rounded-lg shadow-sm overflow-x-auto">
+                        {['dashboard', 'scan', 'master'].map(tab => (
+                            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md font-bold whitespace-nowrap ${activeTab === tab ? 'bg-blue-600 text-white' : 'hover:bg-slate-100'}`}>
+                                {tab.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
 
-          return (
-            <div className="min-h-screen bg-slate-100 p-4 md:p-8 font-sans text-slate-900">
-              <div className="max-w-6xl mx-auto space-y-6">
-                <header className="bg-blue-800 rounded-3xl p-6 md:p-8 text-white shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div>
-                    <h1 className="text-3xl font-black tracking-tight flex items-center gap-3"><IconPackage /> Inventory Google Sheet (Lengkap)</h1>
-                    <p className="text-blue-200 mt-2 font-medium">Sinkronisasi Real-time 3 Admin Gudang</p>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <button onClick={fetchData} className="bg-blue-900 px-4 py-2 rounded-xl text-sm font-bold border border-blue-700 flex items-center gap-2">
-                      {isLoading ? 'Memuat...' : '🔄 Sinkronkan'}
-                    </button>
-                    <button onClick={() => { localStorage.removeItem('gs_url'); setScriptUrl(''); }} className="bg-red-900/60 px-3 py-2 rounded-xl text-xs font-bold">Ganti URL</button>
-                  </div>
-                </header>
-
-                {toast && (
-                  <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-xl text-sm font-bold text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                    {toast.msg}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-200/50 rounded-xl no-print">
-                  {[
-                    { id: 'dashboard', label: 'Dashboard Utama', icon: IconDashboard },
-                    { id: 'scan', label: 'Barang Keluar & Scan', icon: IconExchange },
-                    { id: 'master', label: 'Master Data SN', icon: IconPackage },
-                    { id: 'cable-stock', label: 'Database & Stok Kabel', icon: IconLayers },
-                    { id: 'report-admin', label: 'Laporan Admin', icon: IconChart },
-                    { id: 'report-tech', label: 'Laporan Teknisi', icon: IconUsers },
-                  ].map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex-1 justify-center gap-2 ${activeTab === tab.id ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}>
-                      <tab.icon /> {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                <main className="space-y-6 print-container">
-                  {activeTab === 'dashboard' && (
-                    <div className="space-y-6">
-                      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-8 rounded-3xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div>
-                          <h2 className="text-3xl font-black">Selamat Datang di Gudang Inventory!</h2>
-                          <p className="text-blue-100 mt-2 font-medium max-w-xl">Sistem pemantauan material IKR & FTTH terintegrasi secara real-time untuk seluruh admin gudang dan teknisi lapangan.</p>
-                        </div>
-                        <div className="flex flex-col gap-2 w-full md:w-auto">
-                          <button onClick={() => setActiveTab('scan')} className="bg-white text-blue-700 font-bold px-6 py-3 rounded-2xl shadow-md hover:bg-blue-50 transition text-center">⚡ Mulai Scan Barang Keluar</button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-blue-600">
-                          <p className="text-sm font-bold text-slate-500">Stok Master SN Ready</p>
-                          <p className="text-3xl font-black text-slate-800 mt-2">{masterData.length} <span className="text-sm font-normal text-slate-500">Unit</span></p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-indigo-600">
-                          <p className="text-sm font-bold text-slate-500">Total Keluar Gudang</p>
-                          <p className="text-3xl font-black text-slate-800 mt-2">{outboundData.length} <span className="text-sm font-normal text-slate-500">Item</span></p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-green-600">
-                          <p className="text-sm font-bold text-slate-500">Status Terpasang (INSTALL)</p>
-                          <p className="text-3xl font-black text-slate-800 mt-2">{outboundData.filter(d => d.status === 'INSTALL').length} <span className="text-sm font-normal text-slate-500">Item</span></p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-amber-500">
-                          <p className="text-sm font-bold text-slate-500">Status Belum / Return</p>
-                          <p className="text-3xl font-black text-slate-800 mt-2">{outboundData.filter(d => d.status !== 'INSTALL').length} <span className="text-sm font-normal text-slate-500">Item</span></p>
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
-                          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><IconExchange /> Aktivitas Barang Keluar Terbaru</h3>
-                          <div className="space-y-3">
-                            {outboundData.slice(0, 5).map(d => (
-                              <div key={d.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border">
-                                <div>
-                                  <p className="font-bold text-sm text-slate-800">{d.namaBarang} {d.kabelPrecon !== '-' ? `(${d.kabelPrecon})` : ''}</p>
-                                  <p className="text-xs text-slate-500 font-mono">Teknisi: {d.namaTeknisi} | {d.waktuScan}</p>
-                                </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${d.status === 'INSTALL' ? 'bg-green-100 text-green-700' : d.status === 'RETURN' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                                  {d.status}
-                                </span>
-                              </div>
-                <div className="min-h-screen bg-slate-100 p-4">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="flex gap-2 mb-4 overflow-x-auto">
-                            {['dashboard', 'scan', 'report-admin'].map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg font-bold ${activeTab === tab ? 'bg-blue-600 text-white' : 'bg-white'}`}>
-                                    {tab.toUpperCase()}
-                                </button>
-                            ))}
-                            {outboundData.length === 0 && <p className="text-slate-400 text-sm py-4 text-center">Belum ada aktivitas tercatat.</p>}
-                          </div>
-                        </div>
-
-                        <div className="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
-                          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><IconLayers /> Ringkasan Saldo Stok Kabel Precon</h3>
-                          <div className="space-y-3">
-                            {CABLE_ITEMS.slice(0, 4).map(item => {
-                              const stat = cableStockSummary[item];
-                              return (
-                                <div key={item} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border">
-                                  <p className="font-semibold text-xs text-slate-700 truncate max-w-[240px]">{item}</p>
-                                  <div className="text-right">
-                                    <span className="font-black text-blue-600 text-sm">{stat.sisa} Pcs</span>
-                                    <p className="text-[10px] text-slate-400">Masuk: {stat.masuk} | Keluar: {stat.keluar}</p>
-                                  </div>
-                        {activeTab === 'scan' && (
-                            <div className="bg-white p-4 rounded-xl shadow">
-                                <h2 className="font-bold mb-4">Riwayat Barang Keluar ({outboundData.length})</h2>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-xs table-fixed">
-                                        <thead>
-                                            <tr className="bg-slate-100">
-                                                <th className="p-2 w-20">Waktu</th>
-                                                <th className="p-2 w-24">Teknisi</th>
-                                                <th className="p-2 w-24">SN</th>
-                                                <th className="p-2">Barang</th>
-                                                <th className="p-2 w-20">Aksi</th>
+                    {activeTab === 'scan' && (
+                        <div className="bg-white p-4 rounded-xl shadow-sm border">
+                            <h2 className="font-bold mb-4">Riwayat Barang Keluar ({outboundData.length})</h2>
+                            <div className="overflow-hidden">
+                                <table className="w-full table-fixed border-collapse text-xs md:text-sm">
+                                    <thead>
+                                        <tr className="bg-slate-50 text-left">
+                                            <th className="p-2 w-20 truncate">Teknisi</th>
+                                            <th className="p-2 w-24 truncate">SN / Ket</th>
+                                            <th className="p-2 w-auto truncate">Barang</th>
+                                            <th className="p-2 w-16 text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedOutbound.map(d => (
+                                            <tr key={d.id} className="border-b hover:bg-slate-50">
+                                                <td className="p-2 truncate font-bold">{d.namaTeknisi}</td>
+                                                <td className="p-2 truncate font-mono text-[10px]">{d.sn !== '-' ? d.sn : d.keterangan}</td>
+                                                <td className="p-2 truncate">{d.namaBarang} {d.kabelPrecon !== '-' ? `(${d.kabelPrecon})` : ''}</td>
+                                                <td className="p-2 text-center">
+                                                    <button onClick={() => handleDelete(d.id)} className="text-red-600 font-bold hover:bg-red-50 p-1 rounded">🗑️</button>
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {paginatedOutbound.map(d => (
-                                                <tr key={d.id} className="border-b">
-                                                    <td className="p-2 truncate">{d.waktuScan.split(' ')[1]}</td>
-                                                    <td className="p-2 truncate font-bold">{d.namaTeknisi}</td>
-                                                    <td className="p-2 truncate">{d.sn}</td>
-                                                    <td className="p-2 truncate">{d.namaBarang}</td>
-                                                    <td className="p-2">
-                                                        <button onClick={() => handleDelete(d.id)} className="text-red-500 font-bold px-2">HAPUS</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="mt-4 flex gap-2">
-                                    {Array.from({length: totalPages}, (_, i) => i + 1).map(p => (
-                                        <button key={p} onClick={() => setCurrentPage(p)} className={`px-3 py-1 border ${currentPage === p ? 'bg-blue-600 text-white' : ''}`}>
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'scan' && (
-                    <div className="space-y-6">
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border grid md:grid-cols-3 gap-6">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">1. Pilih Tim Teknisi</label>
-                          <select value={selectedTech} onChange={(e) => setSelectedTech(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-3 bg-slate-50 font-semibold">
-                            {TECHNICIANS.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">2. Scan SN (ONT/STB)</label>
-                          <form onSubmit={handleScan} className="flex gap-2">
-                            <input type="text" value={scanSn} onChange={(e) => setScanSn(e.target.value)} placeholder="Scan Barcode SN..." className="w-full border-2 border-slate-200 rounded-xl p-3 uppercase font-mono" autoFocus />
-                            <button type="submit" className="bg-blue-600 text-white px-4 rounded-xl font-bold"><IconSearch /></button>
-                          </form>
-                        </div>
-                        <div className="border-l-2 border-dashed border-slate-200 pl-6">
-                          <label className="block text-sm font-bold text-slate-700 mb-2 text-emerald-700">3. Ambil Kabel Precon</label>
-                          <form onSubmit={handleManualAdd} className="flex flex-col gap-2">
-                            <select value={manualItem} onChange={(e) => setManualItem(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-2 bg-slate-50 font-semibold text-xs">
-                              {CABLE_ITEMS.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <div className="flex gap-2">
-                              <input type="number" value={manualQty} onChange={(e) => setManualQty(e.target.value)} placeholder="Jmlh Pcs" className="w-full border-2 border-slate-200 rounded-xl p-2 bg-slate-50 font-semibold text-sm"/>
-                              <div className="bg-slate-100 border-2 px-3 py-2 rounded-xl font-bold text-sm">Pcs</div>
-                              <button type="submit" className="bg-emerald-600 text-white px-3 rounded-xl font-bold"><IconPlus /></button>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                          </form>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div className="p-4 bg-slate-50 border-b flex justify-between items-center"><h3 className="font-bold text-slate-800">Riwayat Barang Keluar</h3><span>Total: {outboundData.length}</span></div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-slate-50 text-slate-600">
-                              <tr><th className="p-4">Waktu</th><th className="p-4">Teknisi</th><th className="p-4">SN</th><th className="p-4">Barang</th><th className="p-4">Kabel</th><th className="p-4">Ket</th><th className="p-4 text-center">Aksi</th></tr>
-                            </thead>
-                            <tbody>
-                              {outboundData.map(d => (
-                                <tr key={d.id} className="border-b hover:bg-slate-50">
-                                  <td className="p-4 font-mono">{d.waktuScan}</td>
-                                  <td className="p-4 font-bold">{d.namaTeknisi}</td>
-                                  <td className="p-4 font-mono">{d.sn}</td>
-                                  <td className="p-4 font-semibold">{d.namaBarang}</td>
-                                  <td className="p-4 text-blue-900">{d.kabelPrecon}</td>
-                                  <td className="p-4 font-mono text-emerald-700">{d.keterangan}</td>
-                                  <td className="p-4 text-center">
-                                    <button onClick={() => handleDeleteOutbound(d.id)} className="bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors" title="Hapus Data Keluar & Kembalikan SN">
-                                      <IconTrash />
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                              {outboundData.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-400">Belum ada barang keluar.</td></tr>}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'master' && (
-                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                      <div className="p-5 border-b flex justify-between items-center bg-slate-50">
-                        <div><h2 className="font-bold text-lg">Master Data SN Google Sheet</h2><p className="text-sm text-slate-500">Total: {masterData.length} Unit</p></div>
-                        <button onClick={() => setShowImport(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2"><IconUpload /> Import Excel</button>
-                      </div>
-                      <div className="overflow-x-auto max-h-[500px]">
-                        <table className="w-full text-left text-sm whitespace-nowrap">
-                          <thead className="bg-white sticky top-0 border-b text-slate-500">
-                            <tr><th className="p-4 w-16">No</th><th className="p-4">Deskripsi</th><th className="p-4">SN</th><th className="p-4">Kode DN</th></tr>
-                          </thead>
-                          <tbody>
-                            {masterData.map((d, i) => (
-                              <tr key={d.sn + i} className="border-b hover:bg-slate-50">
-                                <td className="p-4 text-slate-400">{i + 1}</td>
-                                <td className="p-4 font-semibold">{d.item}</td>
-                                <td className="p-4 font-mono font-bold">{d.sn}</td>
-                                <td className="p-4 font-mono text-blue-600">{d.code}</td>
-                              </tr>
-                            ))}
-                            {masterData.length === 0 && <tr><td colSpan="4" className="p-12 text-center text-slate-400">Database kosong.</td></tr>}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'cable-stock' && (
-                    <div className="space-y-6">
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                        <h3 className="font-bold text-lg text-slate-800 mb-2">Input Manual Stok Masuk Kabel Precon</h3>
-                        <form onSubmit={handleAddCableInbound} className="grid md:grid-cols-3 gap-4">
-                          <div className="md:col-span-2">
-                            <select value={newCableItem} onChange={e => setNewCableItem(e.target.value)} className="w-full border-2 rounded-xl p-3 bg-slate-50 font-semibold text-sm">
-                              {CABLE_ITEMS.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                          </div>
-                          <div className="flex gap-2">
-                            <input type="number" value={newCableQty} onChange={e => setNewCableQty(e.target.value)} placeholder="Jumlah" className="w-full border-2 rounded-xl p-3 bg-slate-50 font-semibold"/>
-                            <button type="submit" className="bg-emerald-600 text-white px-5 rounded-xl font-bold">Simpan</button>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div className="p-5 border-b bg-slate-50"><h3 className="font-bold text-lg">Rekap Saldo Stok Kabel</h3></div>
-                        <table className="w-full text-left text-sm">
-                          <thead className="bg-slate-50 text-slate-600">
-                            <tr><th className="p-4">Jenis Kabel</th><th className="p-4 text-center">Masuk</th><th className="p-4 text-center">Keluar</th><th className="p-4 text-center">Sisa Stok</th></tr>
-                          </thead>
-                          <tbody>
-                            {CABLE_ITEMS.map(item => {
-                              const stat = cableStockSummary[item];
-                              return (
-                                <tr key={item} className="border-b">
-                                  <td className="p-4 font-bold">{item}</td>
-                                  <td className="p-4 text-center text-emerald-700 font-bold">{stat.masuk} Pcs</td>
-                                  <td className="p-4 text-center text-orange-600 font-bold">{stat.keluar} Pcs</td>
-                                  <td className="p-4 text-center text-blue-700 font-black">{stat.sisa} Pcs</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'report-admin' && (
-                    <div className="space-y-6">
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border space-y-4 no-print">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <h3 className="text-lg font-black text-slate-800">Filter & Export Laporan Admin</h3>
-                          <div className="flex gap-2">
-                            <button onClick={exportToExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2">
-                              📥 Download Excel
-                            </button>
-                            <button onClick={exportToPDF} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2">
-                              🖨️ Cetak / PDF
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid md:grid-cols-4 gap-4 pt-2 border-t">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-600 mb-1">Periode Laporan</label>
-                            <select value={reportType} onChange={e => setReportType(e.target.value)} className="w-full border-2 rounded-xl p-2.5 font-semibold bg-slate-50 text-sm">
-                              <option value="harian">Laporan Harian</option>
-                              <option value="mingguan">Laporan Mingguan</option>
-                              <option value="bulanan">Laporan Bulanan</option>
-                            </select>
-                          </div>
-
-                          {reportType === 'harian' && (
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-slate-600 mb-1">Pilih Tanggal</label>
-                              <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="w-full border-2 rounded-xl p-2.5 font-semibold bg-slate-50 text-sm"/>
+                            <div className="mt-4 flex justify-center gap-2">
+                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p-1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Prev</button>
+                                <span className="font-bold p-1">{currentPage} / {totalPages || 1}</span>
+                                <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} className="px-3 py-1 bg-slate-200 rounded disabled:opacity-50">Next</button>
                             </div>
-                          )}
-
-                          {reportType === 'mingguan' && (
-                            <>
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 mb-1">Bulan</label>
-                                <select value={reportMonth} onChange={e => setReportMonth(Number(e.target.value))} className="w-full border-2 rounded-xl p-2.5 font-semibold bg-slate-50 text-sm">
-                                  {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 mb-1">Minggu Ke-</label>
-                                <select value={reportWeek} onChange={e => setReportWeek(Number(e.target.value))} className="w-full border-2 rounded-xl p-2.5 font-semibold bg-slate-50 text-sm">
-                                  <option value={1}>Minggu ke-1</option>
-                                  <option value={2}>Minggu ke-2</option>
-                                  <option value={3}>Minggu ke-3</option>
-                                  <option value={4}>Minggu ke-4</option>
-                                  <option value={5}>Minggu ke-5</option>
-                                </select>
-                              </div>
-                            </>
-                          )}
-
-                          {reportType === 'bulanan' && (
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-slate-600 mb-1">Pilih Bulan</label>
-                              <select value={reportMonth} onChange={e => setReportMonth(Number(e.target.value))} className="w-full border-2 rounded-xl p-2.5 font-semibold bg-slate-50 text-sm">
-                                {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                              </select>
-                            </div>
-                          )}
                         </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-4 gap-6">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-blue-500">
-                          <p className="text-sm font-semibold text-slate-500 mb-1">Total Keluar ({reportType.toUpperCase()})</p>
-                          <p className="text-3xl font-black text-slate-800">{filteredReportData.length} Item</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-green-500">
-                          <p className="text-sm font-semibold text-slate-500 mb-1">Total Sudah Instal</p>
-                          <p className="text-3xl font-black text-slate-800">
-                            {filteredReportData.filter(d => d.status === 'INSTALL').length} Item
-                          </p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-orange-500">
-                          <p className="text-sm font-semibold text-slate-500 mb-1">Total Belum Instal (Pending)</p>
-                          <p className="text-3xl font-black text-slate-800">
-                            {filteredReportData.filter(d => d.status === 'BELUM').length} Item
-                          </p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-l-4 border-l-red-500">
-                          <p className="text-sm font-semibold text-slate-500 mb-1">Total Return</p>
-                          <p className="text-3xl font-black text-slate-800">
-                            {filteredReportData.filter(d => d.status === 'RETURN').length} Item
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div className="p-5 border-b bg-slate-50 flex justify-between items-center">
-                          <h3 className="font-bold text-slate-800 text-lg">Rekapitulasi Material ({reportType.toUpperCase()})</h3>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-600">
-                              <tr>
-                                <th className="p-4 font-semibold border-b">Jenis Material</th>
-                                <th className="p-4 font-semibold border-b text-center">Total Keluar</th>
-                                <th className="p-4 font-semibold border-b text-center text-green-600">Install</th>
-                                <th className="p-4 font-semibold border-b text-center text-orange-600">Belum</th>
-                                <th className="p-4 font-semibold border-b text-center text-red-600">Return</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Object.keys(reportAdminStats).map(itemName => {
-                                const stat = reportAdminStats[itemName];
-                                if (stat.total === 0) return null;
-                                return (
-                                  <tr key={itemName} className="border-b hover:bg-slate-50 transition">
-                                    <td className="p-4 font-bold text-slate-700">{itemName}</td>
-                                    <td className="p-4 text-center font-bold text-lg">{stat.total} <span className="text-xs font-normal text-slate-500">{stat.unit}</span></td>
-                                    <td className="p-4 text-center font-semibold text-green-600">{stat.install} <span className="text-xs font-normal text-slate-500">{stat.unit}</span></td>
-                                    <td className="p-4 text-center font-semibold text-orange-600">{stat.belum} <span className="text-xs font-normal text-slate-500">{stat.unit}</span></td>
-                                    <td className="p-4 text-center font-semibold text-red-600">{stat.return} <span className="text-xs font-normal text-slate-500">{stat.unit}</span></td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                        )}
-                        {/* Placeholder untuk tab lain */}
-                    </div>
-                  )}
-
-                  {activeTab === 'report-tech' && (
-                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                      <div className="p-5 border-b bg-slate-50 flex gap-4 items-center">
-                        <select value={reportTech} onChange={e => setReportTech(e.target.value)} className="border-2 rounded-lg p-2 font-semibold">
-                          {TECHNICIANS.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm whitespace-nowrap">
-                          <thead className="bg-slate-50 text-slate-600">
-                            <tr><th className="p-4">Waktu</th><th className="p-4">SN / Ket</th><th className="p-4">Barang</th><th className="p-4 text-center">Status</th></tr>
-                          </thead>
-                          <tbody>
-                            {outboundData.filter(d => d.namaTeknisi === reportTech).map(d => (
-                              <tr key={d.id} className="border-b">
-                                <td className="p-4 font-mono">{d.waktuScan}</td>
-                                <td className="p-4 font-mono font-bold">{d.sn !== '-' ? d.sn : d.keterangan}</td>
-                                <td className="p-4">{d.namaBarang} {d.kabelPrecon !== '-' ? `(${d.kabelPrecon})` : ''}</td>
-                                <td className="p-4 text-center">
-                                  <select value={d.status} onChange={e => updateStatus(d.id, e.target.value)} className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${d.status === 'INSTALL' ? 'bg-green-50 text-green-700' : d.status === 'RETURN' ? 'bg-red-50 text-red-700' : 'bg-orange-50 text-orange-700'}`}>
-                                    <option value="BELUM">⏱️ BELUM</option>
-                                    <option value="INSTALL">✅ INSTALL</option>
-                                    <option value="RETURN">↩️ RETURN</option>
-                                  </select>
-                                </td>
-                              </tr>
-                            ))}
-                            {outboundData.filter(d => d.namaTeknisi === reportTech).length === 0 && <tr><td colSpan="4" className="p-8 text-center text-slate-400">Belum ada barang keluar untuk teknisi ini.</td></tr>}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </main>
-              </div>
-
-              {showImport && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                  <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col">
-                    <div className="p-6 border-b flex justify-between items-center bg-slate-50">
-                      <h3 className="text-xl font-bold">Import Data ke Google Sheet</h3>
-                      <button onClick={() => setShowImport(false)}><IconClose /></button>
-                    </div>
-                    <div className="p-6 space-y-4">
-                      <p className="text-sm text-slate-600">Paste (Ctrl+V) data Excel ke bawah ini:</p>
-                      <textarea value={importData} onChange={e => setImportData(e.target.value)} className="w-full h-64 p-4 border-2 rounded-xl text-sm font-mono" placeholder="Paste data Excel..."></textarea>
-                    </div>
-                    <div className="p-6 border-t bg-slate-50 flex justify-end gap-3">
-                      <button onClick={() => setShowImport(false)} className="px-6 py-2.5 font-bold">Batal</button>
-                      <button onClick={handleBulkImport} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold">Proses & Kirim</button>
-                    </div>
-                  </div>
+                    )}
                 </div>
-              )}
-            </div>
-          );
             );
         }
-        
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
+```eof
