@@ -10,13 +10,12 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-900 font-sans text-sm">
+<body class="bg-slate-50 min-h-screen text-slate-900 font-sans text-sm">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
         const ITEMS = ['ONT ZTE', 'ONT HUAWEI', 'STB ZTE', 'STB NAVICOM', 'STB TRANSVISION', 'STB HOMATIC', 'STB FIBERHOME'];
-        const TECHNICIANS = ['PUTRA-SONY', 'EKO-RIYAN', 'NADI-PARI', 'ARIP', 'NOVAN-GOBY', 'PERI-ROBIN', 'TEDI-DODI', 'DODi-DANIEL-TEDI', 'RAHMAN-FAJAR', 'IQBAL-ARDI', 'RIO-ARI', 'AGUS'];
         const CABLE_ITEMS = ['DTFIBER - CABLE PRECON SC/UPC-SC/APC - 75MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 125MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 175MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 225MTR', 'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 300MTR'];
 
         function App() {
@@ -36,13 +35,10 @@
                     if(json.master) setMasterData(json.master.slice(1).map(r => ({item: r[0], sn: r[1], code: r[2]})));
                     if(json.outbound) setOutboundData(json.outbound.slice(1).map(r => ({id: r[0], waktuScan: r[1], namaTeknisi: r[2], sn: r[3], namaBarang: r[4], kabelPrecon: r[5], keterangan: r[6], status: r[7]})));
                     if(json.cables) setCableStockInbound(json.cables.slice(1).map(r => ({id: r[0], item: r[1], qty: Number(r[2])})));
-                } catch(e) { console.error("Error fetching"); }
+                } catch(e) { console.error("Error fetching data"); }
             };
 
             useEffect(() => { if (scriptUrl) fetchData(); }, [scriptUrl]);
-
-            const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
-            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
             const handleDelete = async (id) => {
                 if(!confirm("Hapus data ini?")) return;
@@ -50,6 +46,16 @@
                 setOutboundData(newData);
                 await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type: "saveOutbound", rows: [["ID", "Waktu", "Teknisi", "SN", "Barang", "Kabel", "Ket", "Status"], ...newData.map(d => [d.id, d.waktuScan, d.namaTeknisi, d.sn, d.namaBarang, d.kabelPrecon, d.keterangan, d.status])] }) });
             };
+
+            const snStock = useMemo(() => {
+                const counts = {};
+                ITEMS.forEach(i => counts[i] = 0);
+                masterData.forEach(d => { if(counts[d.item] !== undefined) counts[d.item]++; });
+                return counts;
+            }, [masterData]);
+
+            const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
+            const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
             if (!scriptUrl) return <div className="p-10 text-center"><h2 className="font-bold">Masukkan URL di LocalStorage</h2><input className="border p-2 mt-2 w-full max-w-sm" onChange={(e)=>setScriptUrl(e.target.value)} /><button className="bg-blue-600 text-white p-2 mt-2" onClick={()=>localStorage.setItem('gs_url', scriptUrl) || window.location.reload()}>Simpan</button></div>;
 
@@ -64,8 +70,13 @@
                         <button onClick={fetchData} className="ml-auto bg-slate-800 text-white px-4 py-2 rounded-md font-bold text-xs">Sync Data</button>
                     </div>
 
-                    {activeTab === 'dashboard' && <div className="text-center p-10 font-bold">Dashboard tersedia (Kode sudah dikembalikan)</div>}
-                    
+                    {activeTab === 'dashboard' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white p-6 rounded-xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Stok Material SN</h3>{Object.keys(snStock).map(i => <div key={i} className="flex justify-between py-2 border-b"><span>{i}</span><span className="font-bold text-blue-600">{snStock[i]} Unit</span></div>)}</div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm border"><h3 className="font-bold text-lg mb-4">Ringkasan Riwayat</h3><p>Total Barang Keluar: {outboundData.length}</p><p>Total Data Master: {masterData.length}</p></div>
+                        </div>
+                    )}
+
                     {activeTab === 'scan' && (
                         <div className="bg-white p-4 rounded-xl shadow-sm border">
                             <h2 className="font-bold text-lg mb-4">Riwayat Barang Keluar ({outboundData.length})</h2>
@@ -76,7 +87,7 @@
                                             <th className="p-2 w-20 truncate">Teknisi</th>
                                             <th className="p-2 w-24 truncate">SN / Ket</th>
                                             <th className="p-2 w-auto truncate">Barang</th>
-                                            <th className="p-2 w-16 text-center">Aksi</th>
+                                            <th className="p-2 w-16 truncate text-center">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -85,7 +96,9 @@
                                                 <td className="p-2 truncate font-bold">{d.namaTeknisi}</td>
                                                 <td className="p-2 truncate font-mono text-[10px]">{d.sn !== '-' ? d.sn : d.keterangan}</td>
                                                 <td className="p-2 truncate">{d.namaBarang} {d.kabelPrecon !== '-' ? `(${d.kabelPrecon})` : ''}</td>
-                                                <td className="p-2 text-center"><button onClick={() => handleDelete(d.id)} className="text-red-600 font-bold hover:bg-red-50 p-1 rounded">🗑️</button></td>
+                                                <td className="p-2 text-center">
+                                                    <button onClick={() => handleDelete(d.id)} className="text-red-600 font-bold hover:bg-red-50 p-1 rounded">🗑️</button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -98,6 +111,8 @@
                             </div>
                         </div>
                     )}
+                    {activeTab === 'master' && <div className="p-10 text-center font-bold">Fitur Master Data Aktif</div>}
+                    {activeTab === 'report-admin' && <div className="p-10 text-center font-bold">Fitur Laporan Aktif</div>}
                 </div>
             );
         }
