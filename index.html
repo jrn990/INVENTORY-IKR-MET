@@ -8,7 +8,7 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Load React -->
+    <!-- Load React & Babel -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -16,16 +16,21 @@
     <!-- Load SheetJS for Excel export/import -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- Load Tone.js for Scanner Sounds -->
+    <!-- Load Tone.js for Sound Effects -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <!-- Load Html5-Qrcode for Camera Barcode Scanner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
     
     <style>
-        /* Print styles to ensure reports look good on paper */
         @media print {
-            body { background: white !important; color: black !important; }
+            body { background: white !important; color: black !important; margin: 0; padding: 0; }
             .no-print, header, nav, button { display: none !important; }
             .print-container { width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important; }
+            .print-only { display: block !important; }
         }
+        .print-only { display: none; }
+        
         /* Custom scrollbar for better aesthetics */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -34,12 +39,17 @@
         
         /* Modal animation */
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
         }
         .modal-overlay {
             animation: fadeIn 0.2s ease-out forwards;
         }
+
+        /* Camera scanner customization */
+        #reader { border: none !important; border-radius: 1rem; overflow: hidden; }
+        #reader button { background-color: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 13px;}
+        #reader button:hover { background-color: #1d4ed8; }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-900 font-sans text-sm selection:bg-blue-200 selection:text-blue-900">
@@ -57,7 +67,9 @@
           'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 225MTR',
           'DTFIBER - CABLE PRECON SC/UPC-SC/APC - 300MTR'
         ];
+        const CHART_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
 
+        // --- SVG Icons ---
         const IconDashboard = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-5zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5z"/></svg>;
         const IconPackage = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>;
         const IconSearch = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35"/></svg>;
@@ -73,6 +85,113 @@
         const IconLock = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>;
         const IconUnlock = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>;
         const IconEye = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>;
+        const IconCamera = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+        const IconPrinter = () => <svg className="w-5 h-5 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>;
+
+        // --- Native Custom Bar Chart Component ---
+        const CustomBarChart = ({ data }) => {
+            if (!data || data.length === 0) {
+                return <div className="flex items-center justify-center h-full text-slate-400 text-sm">Belum ada data barang keluar.</div>;
+            }
+
+            const maxVal = Math.max(...data.map(d => d.Terpasang + d.Pending + d.Return), 1);
+
+            return (
+                <div className="w-full h-full flex flex-col justify-between py-2">
+                    <div className="space-y-3 overflow-y-auto max-h-[260px] pr-2 custom-scrollbar">
+                        {data.map((item, idx) => {
+                            const total = item.Terpasang + item.Pending + item.Return;
+                            const pInstall = (item.Terpasang / maxVal) * 100;
+                            const pPending = (item.Pending / maxVal) * 100;
+                            const pReturn = (item.Return / maxVal) * 100;
+
+                            return (
+                                <div key={idx} className="space-y-1">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="font-bold text-slate-700 truncate max-w-[200px]" title={item.name}>{item.name}</span>
+                                        <span className="font-mono text-slate-500 font-bold">{total} Item</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden flex">
+                                        {item.Terpasang > 0 && (
+                                            <div style={{ width: `${pInstall}%` }} className="bg-emerald-500 h-full transition-all duration-500" title={`Terpasang: ${item.Terpasang}`}></div>
+                                        )}
+                                        {item.Pending > 0 && (
+                                            <div style={{ width: `${pPending}%` }} className="bg-amber-400 h-full transition-all duration-500" title={`Pending: ${item.Pending}`}></div>
+                                        )}
+                                        {item.Return > 0 && (
+                                            <div style={{ width: `${pReturn}%` }} className="bg-red-500 h-full transition-all duration-500" title={`Return: ${item.Return}`}></div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    
+                    {/* Legend */}
+                    <div className="flex justify-center items-center gap-6 pt-3 border-t text-xs font-bold text-slate-600">
+                        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-500"></span> Terpasang</div>
+                        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-400"></span> Pending</div>
+                        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500"></span> Return</div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Native Custom Donut Chart Component ---
+        const CustomDonutChart = ({ data }) => {
+            if (!data || data.length === 0) {
+                return <div className="flex items-center justify-center h-full text-slate-400 text-sm">Belum ada perangkat terpasang bulan ini.</div>;
+            }
+
+            const totalValue = data.reduce((sum, item) => sum + item.value, 0);
+            let cumulativeAngle = 0;
+
+            return (
+                <div className="w-full h-full flex flex-col md:flex-row items-center justify-center gap-6">
+                    <div className="relative w-44 h-44 shrink-0">
+                        <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                            {data.map((item, idx) => {
+                                const strokeDasharray = `${(item.value / totalValue) * 283} 283`;
+                                const strokeDashoffset = -cumulativeAngle;
+                                cumulativeAngle += (item.value / totalValue) * 283;
+                                const color = CHART_COLORS[idx % CHART_COLORS.length];
+
+                                return (
+                                    <circle
+                                        key={idx}
+                                        cx="50"
+                                        cy="50"
+                                        r="45"
+                                        fill="transparent"
+                                        stroke={color}
+                                        strokeWidth="10"
+                                        strokeDasharray={strokeDasharray}
+                                        strokeDashoffset={strokeDashoffset}
+                                        className="transition-all duration-700 ease-out"
+                                    />
+                                );
+                            })}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                            <span className="text-2xl font-black text-slate-800">{totalValue}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Terpasang</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2 flex-1 w-full max-w-[200px]">
+                        {data.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2 truncate pr-2">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}></span>
+                                    <span className="font-bold text-slate-700 truncate">{item.name}</span>
+                                </div>
+                                <span className="font-mono font-bold text-slate-800">{item.value} <span className="text-[10px] text-slate-400">Unit</span></span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
 
         function App() {
           // System State
@@ -85,7 +204,11 @@
           const [passwordModal, setPasswordModal] = useState(false);
           const [adminPasswordInput, setAdminPasswordInput] = useState('');
           
-          // Security State (Admin Lock)
+          // Camera & Print State
+          const [isScannerOpen, setIsScannerOpen] = useState(false);
+          const [suratJalanData, setSuratJalanData] = useState(null);
+          
+          // Security State
           const [isAdminUnlocked, setIsAdminUnlocked] = useState(() => sessionStorage.getItem('admin_unlocked') === 'true');
 
           // Data State
@@ -121,22 +244,24 @@
 
           const playSuccessSound = async () => {
             try {
-                await Tone.start();
-                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-                synth.volume.value = -10;
-                const now = Tone.now();
-                // Play a pleasant "ting-ting" sound
-                synth.triggerAttackRelease(["E5", "G5", "C6"], "8n", now);
+                if (window.Tone) {
+                    await Tone.start();
+                    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                    synth.volume.value = -10;
+                    const now = Tone.now();
+                    synth.triggerAttackRelease(["E5", "G5", "C6"], "8n", now);
+                }
             } catch(e) { console.log("Audio play prevented", e); }
           };
 
           const playErrorSound = async () => {
             try {
-                await Tone.start();
-                const synth = new Tone.Synth().toDestination();
-                synth.volume.value = -5;
-                // Play a low error "bip" sound
-                synth.triggerAttackRelease("C3", "4n");
+                if (window.Tone) {
+                    await Tone.start();
+                    const synth = new Tone.Synth().toDestination();
+                    synth.volume.value = -5;
+                    synth.triggerAttackRelease("C3", "4n");
+                }
             } catch(e) { console.log("Audio play prevented", e); }
           };
 
@@ -144,6 +269,28 @@
             setToast({ msg, type });
             setTimeout(() => setToast(null), 4000);
           };
+
+          useEffect(() => {
+            let html5QrcodeScanner = null;
+            if (isScannerOpen && window.Html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+                html5QrcodeScanner.render(
+                    (decodedText) => {
+                        setScanSn(decodedText);
+                        playSuccessSound();
+                        showMessage("Barcode terdeteksi!", "success");
+                        setIsScannerOpen(false);
+                        if(html5QrcodeScanner) html5QrcodeScanner.clear();
+                    },
+                    (errorMessage) => {}
+                );
+            }
+            return () => {
+                if (html5QrcodeScanner) {
+                    html5QrcodeScanner.clear().catch(error => console.error("Failed to clear scanner", error));
+                }
+            };
+          }, [isScannerOpen]);
 
           const saveUrl = (e) => {
             e.preventDefault();
@@ -187,7 +334,6 @@
             setIsLoading(false);
           };
 
-          // Fetch on URL change
           useEffect(() => {
             if (scriptUrl) fetchData();
           }, [scriptUrl]);
@@ -195,10 +341,7 @@
           const syncDataToSheet = async (type, rows) => {
             if (!scriptUrl) return;
             try {
-                await fetch(scriptUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ type, rows }) 
-                });
+                await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ type, rows }) });
             } catch (error) {
                 console.error("Sync error", error);
                 showMessage(`Gagal sinkronisasi data ${type}.`, 'error');
@@ -297,6 +440,7 @@
           const handleManualAdd = async (e) => {
             e.preventDefault();
             if (!manualQty || isNaN(manualQty) || Number(manualQty) <= 0) {
+              playErrorSound();
               showMessage('Masukkan jumlah Pcs yang valid!', 'error');
               return;
             }
@@ -326,6 +470,7 @@
             const updatedOut = [...newOutbounds, ...outboundData];
             setOutboundData(updatedOut);
             await syncOutboundToSheet(updatedOut);
+            playSuccessSound();
             showMessage(`Berhasil mencatat ${qtyToAdd} Pcs ${manualItem}.`);
             setManualQty('');
           };
@@ -386,6 +531,7 @@
             }
 
             await syncOutboundToSheet(updatedOutbound);
+            playSuccessSound();
             showMessage('Data berhasil dihapus' + (itemToDelete.sn !== '-' ? ' & SN dikembalikan ke Gudang.' : '.'));
             setConfirmModal(null);
           };
@@ -447,7 +593,6 @@
           const totalPages = Math.ceil(outboundData.length / ITEMS_PER_PAGE);
           const paginatedOutbound = outboundData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-          // Dynamic Device Stock Calculation (from Master Data directly)
           const deviceStockSummary = useMemo(() => {
             const summary = {};
             masterData.forEach(d => {
@@ -455,7 +600,6 @@
                 if (!summary[itemName]) summary[itemName] = 0;
                 summary[itemName]++;
             });
-            // Convert to array and sort by quantity (highest first)
             return Object.entries(summary).sort((a, b) => b[1] - a[1]);
           }, [masterData]);
 
@@ -487,14 +631,12 @@
 
           const reportAdminStats = useMemo(() => {
             const stats = {};
-            // Extract all unique items from filtered data to ensure dynamic reporting
             const uniqueItems = new Set();
             filteredReportData.forEach(d => {
                 const itemName = d.namaBarang === 'Kabel Precon' ? d.kabelPrecon : d.namaBarang;
                 uniqueItems.add(itemName);
             });
 
-            // Initialize structures
             uniqueItems.forEach(item => {
                 const isCable = CABLE_ITEMS.includes(item);
                 stats[item] = { total: 0, install: 0, belum: 0, return: 0, unit: isCable ? 'Pcs' : 'Unit' };
@@ -524,6 +666,25 @@
             return summary;
           }, [cableStockInbound, outboundData]);
 
+          const barChartData = useMemo(() => {
+              return Object.entries(reportAdminStats)
+                .filter(([_, s]) => s.total > 0)
+                .map(([name, s]) => ({ name, Terpasang: s.install, Pending: s.belum, Return: s.return }))
+                .sort((a,b) => (b.Terpasang+b.Pending) - (a.Terpasang+a.Pending))
+                .slice(0, 8);
+          }, [reportAdminStats]);
+
+          const pieChartData = useMemo(() => {
+             const techStats = {};
+             const currentMonth = new Date().getMonth();
+             outboundData.forEach(d => {
+                 if(d.status === 'INSTALL' && d.month === currentMonth) {
+                     techStats[d.namaTeknisi] = (techStats[d.namaTeknisi] || 0) + 1;
+                 }
+             });
+             return Object.entries(techStats).map(([name, value]) => ({name, value})).sort((a,b)=>b.value-a.value).slice(0, 5);
+          }, [outboundData]);
+
           const exportToExcel = () => {
             const exportRows = displayedLogData.map((d, index) => ({
               "No": index + 1,
@@ -548,6 +709,21 @@
           };
 
           const exportToPDF = () => { window.print(); };
+
+          const handlePrintSuratJalan = (d) => {
+              const relatedItems = outboundData.filter(item => item.namaTeknisi === d.namaTeknisi && item.waktuScan === d.waktuScan);
+              setSuratJalanData({
+                  teknisi: d.namaTeknisi,
+                  waktu: d.waktuScan,
+                  idTransaksi: `TRX-${new Date(d.waktuScan.replace(' ', 'T')).getTime().toString().substr(-6)}`,
+                  items: relatedItems
+              });
+              
+              setTimeout(() => {
+                  window.print();
+                  setTimeout(() => setSuratJalanData(null), 1000);
+              }, 300);
+          };
 
           if (!scriptUrl) {
             return (
@@ -580,771 +756,880 @@
           }
 
           return (
-            <div className="min-h-screen bg-slate-100 p-4 md:p-8 font-sans text-slate-900 relative">
+            <div className="min-h-screen bg-slate-100 font-sans text-slate-900 relative">
               
-              {/* Delete Confirmation Modal Overlay */}
-              {confirmModal && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm modal-overlay">
-                      <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-8 max-w-sm w-full">
-                          <IconAlertCircle />
-                          <h3 className="text-xl font-black text-center text-slate-800 mb-2">{confirmModal.title}</h3>
-                          <p className="text-center text-slate-600 text-sm mb-6">{confirmModal.message}</p>
-                          <div className="flex gap-3">
-                              <button onClick={() => setConfirmModal(null)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Batal</button>
-                              <button onClick={confirmDeleteOutbound} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-lg shadow-red-600/30">Hapus</button>
-                          </div>
+              {/* --- SURAT JALAN PRINT VIEW --- */}
+              {suratJalanData && (
+                  <div className="print-only bg-white p-8 w-full h-full text-black">
+                      <div className="text-center border-b-4 border-black pb-4 mb-6">
+                          <h1 className="text-2xl font-black uppercase tracking-widest">Surat Jalan / Bukti Serah Terima</h1>
+                          <p className="text-sm mt-1">Gudang Sentral Operasional IKR & FTTH</p>
                       </div>
-                  </div>
-              )}
-
-              {/* Admin Password Modal Overlay */}
-              {passwordModal && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm modal-overlay">
-                      <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-8 max-w-sm w-full">
-                          <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <IconLock />
-                          </div>
-                          <h3 className="text-xl font-black text-center text-slate-800 mb-2">Area Terbatas</h3>
-                          <p className="text-center text-slate-600 text-sm mb-6">Masukkan password admin untuk membuka akses ke fungsi ini.</p>
-                          <form onSubmit={submitAdminPassword}>
-                              <input 
-                                  type="password" 
-                                  autoFocus
-                                  value={adminPasswordInput} 
-                                  onChange={e => setAdminPasswordInput(e.target.value)} 
-                                  placeholder="Password..." 
-                                  className="w-full border-2 border-slate-200 rounded-xl p-3 text-center text-lg focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none font-bold bg-slate-50 transition mb-4"
-                              />
-                              <div className="flex gap-3">
-                                  <button type="button" onClick={() => setPasswordModal(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Batal</button>
-                                  <button type="submit" className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-lg shadow-red-600/30">Buka Akses</button>
-                              </div>
-                          </form>
-                      </div>
-                  </div>
-              )}
-
-              <div className="max-w-7xl mx-auto space-y-6">
-                
-                {/* Header Section */}
-                <header className="bg-blue-800 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-blue-900/10 flex flex-col md:flex-row justify-between items-center gap-4 no-print relative overflow-hidden">
-                  <div className="absolute top-0 right-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-                      <svg width="200" height="200" viewBox="0 0 24 24" fill="currentColor"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                  </div>
-                  <div className="relative z-10 text-center md:text-left">
-                    <h1 className="text-3xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3">
-                        <span className="bg-white/20 p-2 rounded-xl backdrop-blur-sm"><IconPackage /></span> 
-                        Inventory Tracker
-                    </h1>
-                    <p className="text-blue-200 mt-2 font-medium text-sm md:text-base">Sinkronisasi Real-time Database Gudang & Lapangan</p>
-                  </div>
-                  <div className="flex gap-3 items-center relative z-10">
-                    <button onClick={fetchData} className="bg-white/10 backdrop-blur-sm px-4 py-2.5 rounded-xl text-sm font-bold border border-white/20 flex items-center gap-2 hover:bg-white/20 transition shadow-sm">
-                      <span className={isLoading ? 'animate-spin' : ''}>🔄</span> {isLoading ? 'Memuat...' : 'Sinkronkan'}
-                    </button>
-                    <button onClick={() => { localStorage.removeItem('gs_url'); setScriptUrl(''); }} className="text-blue-200 hover:text-white px-3 py-2.5 rounded-xl text-sm font-bold transition hover:bg-white/10">
-                        Putus Koneksi
-                    </button>
-                  </div>
-                </header>
-
-                {/* Toast Notification */}
-                {toast && (
-                  <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-xl text-sm font-bold text-white transition-all transform duration-300 translate-y-0 ${toast.type === 'error' ? 'bg-red-600 shadow-red-600/30' : 'bg-emerald-600 shadow-emerald-600/30'}`}>
-                    {toast.msg}
-                  </div>
-                )}
-
-                {/* Navigation Tabs */}
-                <nav className="flex flex-wrap gap-2 p-1.5 bg-white/50 backdrop-blur-sm border border-slate-200 rounded-2xl no-print shadow-sm">
-                  {[
-                    { id: 'dashboard', label: 'Dashboard Utama', icon: IconDashboard },
-                    { id: 'scan', label: 'Barang Keluar & Scan', icon: IconExchange },
-                    { id: 'master', label: 'Master Data SN', icon: IconPackage },
-                    { id: 'cable-stock', label: 'Database Kabel', icon: IconLayers },
-                    { id: 'report-admin', label: 'Laporan Admin', icon: IconChart },
-                    { id: 'report-tech', label: 'Laporan Teknisi', icon: IconUsers },
-                  ].map(tab => (
-                    <button 
-                        key={tab.id} 
-                        onClick={() => setActiveTab(tab.id)} 
-                        className={`flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all flex-1 justify-center gap-2 min-w-[140px]
-                            ${activeTab === tab.id ? 'bg-white text-blue-700 shadow-md ring-1 ring-slate-900/5' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800'}`}
-                    >
-                      <tab.icon /> <span className="hidden sm:inline">{tab.label}</span>
-                    </button>
-                  ))}
-                </nav>
-
-                <main className="space-y-6 print-container">
-                  
-                  {}
-                  {activeTab === 'dashboard' && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                       
-                      {/* Hero Section */}
-                      <div className="bg-gradient-to-br from-indigo-600 via-blue-700 to-blue-800 text-white p-8 md:p-10 rounded-[2rem] shadow-xl flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] opacity-50"></div>
-                        <div className="relative z-10 text-center md:text-left">
-                          <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-2">Pantau Gudang Cerdas</h2>
-                          <p className="text-blue-100 font-medium max-w-xl text-lg opacity-90">Sistem terintegrasi pemantauan material IKR & FTTH secara real-time untuk efisiensi maksimal.</p>
-                        </div>
-                        <div className="relative z-10 w-full md:w-auto">
-                          <button onClick={() => setActiveTab('scan')} className="w-full md:w-auto bg-white text-blue-800 font-bold px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl hover:bg-slate-50 transition-all hover:-translate-y-1 flex items-center justify-center gap-2">
-                              <IconExchange /> Mulai Proses Scan
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* KPI Cards */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-                          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-3"><IconPackage /></div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Stok Master Ready</p>
-                          <p className="text-3xl font-black text-slate-800 mt-1">{masterData.length} <span className="text-sm font-medium text-slate-400">Unit</span></p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3"><IconExchange /></div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Keluar</p>
-                          <p className="text-3xl font-black text-slate-800 mt-1">{outboundData.length} <span className="text-sm font-medium text-slate-400">Item</span></p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg></div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status Terpasang</p>
-                          <p className="text-3xl font-black text-slate-800 mt-1">{outboundData.filter(d => d.status === 'INSTALL').length} <span className="text-sm font-medium text-slate-400">Item</span></p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
-                          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3"><IconAlertCircle /></div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Belum / Return</p>
-                          <p className="text-3xl font-black text-slate-800 mt-1">{outboundData.filter(d => d.status !== 'INSTALL').length} <span className="text-sm font-medium text-slate-400">Item</span></p>
-                        </div>
-                      </div>
-
-                      {/* Detail Widgets */}
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {/* Device Stock Alert (Dynamic) */}
-                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col h-[400px]">
-                          <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-6"><div className="p-2 bg-slate-100 rounded-lg"><IconPackage /></div> Pantauan Stok Perangkat</h3>
-                          <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                            {deviceStockSummary.map(([itemName, stock]) => {
-                                const isLow = stock <= 5 && stock > 0;
-                                const isEmpty = stock <= 0;
-                                
-                                return (
-                                <div key={itemName} className={`p-4 rounded-2xl border transition-colors ${isEmpty ? 'bg-red-50 border-red-100' : isLow ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <p className={`font-bold text-sm line-clamp-2 pr-4 ${isEmpty ? 'text-red-900' : isLow ? 'text-amber-900' : 'text-slate-800'}`}>{itemName}</p>
-                                        <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-black ${isEmpty ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-700' : 'bg-white text-slate-600 shadow-sm'}`}>
-                                            {stock} Unit
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-black/5 rounded-full h-1.5 mt-2 overflow-hidden">
-                                        <div className={`h-1.5 rounded-full ${isEmpty ? 'bg-red-500 w-full' : isLow ? 'bg-amber-400 w-1/4' : 'bg-blue-400 w-3/4'}`}></div>
-                                    </div>
-                                </div>
-                                )
-                            })}
-                            {deviceStockSummary.length === 0 && (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                    <IconPackage />
-                                    <p className="text-sm mt-2">Master Data Kosong.</p>
-                                </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Cable Stock Alert */}
-                         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col h-[400px]">
-                          <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-6"><div className="p-2 bg-slate-100 rounded-lg"><IconLayers /></div> Pantauan Stok Kabel</h3>
-                          <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                            {CABLE_ITEMS.map(item => {
-                                const stat = cableStockSummary[item] || { sisa: 0 };
-                                const isLow = stat.sisa <= 10 && stat.sisa > 0;
-                                const isEmpty = stat.sisa <= 0;
-                                
-                                return (
-                                <div key={item} className={`p-4 rounded-2xl border transition-colors ${isEmpty ? 'bg-red-50 border-red-100' : isLow ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <p className={`font-bold text-sm line-clamp-2 pr-4 ${isEmpty ? 'text-red-900' : isLow ? 'text-amber-900' : 'text-slate-800'}`}>{item}</p>
-                                        <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-black ${isEmpty ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-700' : 'bg-white text-slate-600 shadow-sm'}`}>
-                                            {stat.sisa} Pcs
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-black/5 rounded-full h-1.5 mt-2 overflow-hidden">
-                                        <div className={`h-1.5 rounded-full ${isEmpty ? 'bg-red-500 w-full' : isLow ? 'bg-amber-400 w-1/4' : 'bg-emerald-400 w-3/4'}`}></div>
-                                    </div>
-                                </div>
-                                )
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Recent Activity (Full Width at Bottom) */}
-                      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col">
-                          <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-6"><div className="p-2 bg-slate-100 rounded-lg"><IconExchange /></div> Aktivitas Barang Keluar Terbaru</h3>
-                          <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[300px]">
-                            {outboundData.slice(0, 8).map(d => (
-                              <div key={d.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center group bg-slate-50 p-4 rounded-2xl border border-slate-100 gap-4">
-                                <div className="flex gap-4 items-center">
-                                    <div className={`w-3 h-3 rounded-full shrink-0 ${d.status === 'INSTALL' ? 'bg-emerald-500' : d.status === 'RETURN' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
-                                    <div>
-                                        <p className="font-bold text-sm text-slate-800">{d.namaBarang} {d.kabelPrecon !== '-' ? <span className="text-slate-500 font-normal">({d.kabelPrecon})</span> : ''}</p>
-                                        <p className="text-xs text-slate-500 mt-1">{d.namaTeknisi} • <span className="font-mono">{d.waktuScan}</span></p>
-                                    </div>
-                                </div>
-                                <span className={`self-start sm:self-center px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase shrink-0 ${d.status === 'INSTALL' ? 'bg-emerald-100 text-emerald-800' : d.status === 'RETURN' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
-                                  {d.status}
-                                </span>
-                              </div>
-                            ))}
-                            {outboundData.length === 0 && (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400 py-10">
-                                    <IconSearch />
-                                    <p className="text-sm mt-2">Belum ada aktivitas barang keluar.</p>
-                                </div>
-                            )}
-                          </div>
-                      </div>
-
-                    </div>
-                  )}
-
-                  {}
-                  {activeTab === 'scan' && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <div className="grid md:grid-cols-2 gap-6">
-                        
-                        {/* Device Scanner */}
-                        <form onSubmit={handleScan} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 relative overflow-hidden">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-[100px] -z-0"></div>
-                          
-                          <div className="relative z-10">
-                              <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><IconExchange /></div> Scan Perangkat</h3>
-                              <p className="text-slate-500 text-sm mt-1">Keluarkan ONT/STB dari Master Data ke Teknisi.</p>
-                          </div>
-                          
-                          <div className="space-y-4 relative z-10">
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Penugasan Teknisi</label>
-                                <select value={selectedTech} onChange={e => setSelectedTech(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-bold bg-slate-50 transition cursor-pointer">
-                                  {TECHNICIANS.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                              </div>
-                              
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Scan Barcode / SN</label>
-                                <input type="text" value={scanSn} onChange={e => setScanSn(e.target.value)} autoFocus placeholder="Arahkan scanner ke sini..." className="w-full border-2 border-slate-200 rounded-xl p-4 text-base focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-mono font-bold bg-slate-50 transition placeholder:font-sans placeholder:font-normal"/>
-                              </div>
-                          </div>
-                          
-                          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-blue-600/30 relative z-10 text-lg">Proses & Tugaskan</button>
-                        </form>
-
-                        {/* Manual Cable Entry */}
-                        <form onSubmit={handleManualAdd} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 relative overflow-hidden">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-[100px] -z-0"></div>
-                          
-                          <div className="relative z-10">
-                              <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><IconPlus /></div> Input Manual Kabel</h3>
-                              <p className="text-slate-500 text-sm mt-1">Catat pengeluaran kabel Precon ke Teknisi.</p>
-                          </div>
-                          
-                          <div className="space-y-4 relative z-10">
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Pilih Item Kabel</label>
-                                <select value={manualItem} onChange={e => setManualItem(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-3.5 text-xs sm:text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold bg-slate-50 transition cursor-pointer">
-                                  {CABLE_ITEMS.map(i => <option key={i} value={i}>{i}</option>)}
-                                </select>
-                              </div>
-                              
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Jumlah Keluar (Pcs)</label>
-                                <input type="number" min="1" value={manualQty} onChange={e => setManualQty(e.target.value)} placeholder="Contoh: 2" className="w-full border-2 border-slate-200 rounded-xl p-4 text-base focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none font-mono font-bold bg-slate-50 transition placeholder:font-sans placeholder:font-normal"/>
-                              </div>
-                          </div>
-                          
-                          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-indigo-600/30 relative z-10 text-lg">Catat Pengeluaran</button>
-                        </form>
-                      </div>
-
-                      {/* History Table */}
-                      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-6 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+                      <div className="flex justify-between mb-8">
                           <div>
-                              <h3 className="font-black text-lg text-slate-800">History Barang Keluar</h3>
-                              <p className="text-xs text-slate-500">Log aktivitas terbaru dari gudang.</p>
+                              <p className="text-sm"><span className="font-bold inline-block w-24">ID Transaksi</span>: {suratJalanData.idTransaksi}</p>
+                              <p className="text-sm"><span className="font-bold inline-block w-24">Tanggal</span>: {suratJalanData.waktu.split(' ')[0]}</p>
+                              <p className="text-sm"><span className="font-bold inline-block w-24">Waktu</span>: {suratJalanData.waktu.split(' ')[1]}</p>
                           </div>
-                          <span className="text-xs bg-blue-100 text-blue-800 px-4 py-1.5 rounded-full font-black uppercase tracking-wider">Total Data: {outboundData.length}</span>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-slate-50 text-slate-500 font-bold border-b text-xs uppercase tracking-wider">
-                              <tr>
-                                <th className="p-4 pl-6">Waktu</th>
-                                <th className="p-4">Teknisi</th>
-                                <th className="p-4">Detail Item (SN)</th>
-                                <th className="p-4">Kabel</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 text-center pr-6">Aksi</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {paginatedOutbound.map(d => (
-                                <tr key={d.id} className="hover:bg-blue-50/30 transition-colors group">
-                                  <td className="p-4 pl-6">
-                                      <div className="font-mono text-slate-600 font-medium">{d.waktuScan.split(' ')[0]}</div>
-                                      <div className="text-xs text-slate-400 font-mono">{d.waktuScan.split(' ')[1]}</div>
-                                  </td>
-                                  <td className="p-4 font-black text-slate-700">{d.namaTeknisi}</td>
-                                  <td className="p-4">
-                                    <div className="font-bold text-blue-700 bg-blue-50 inline-block px-2 py-0.5 rounded text-xs mb-1">{d.sn !== '-' ? d.sn : d.namaBarang}</div>
-                                    <div className="text-xs text-slate-500">{d.namaBarang !== 'Kabel Precon' ? d.namaBarang : d.keterangan}</div>
-                                  </td>
-                                  <td className="p-4 text-xs font-medium text-slate-600">{d.kabelPrecon !== '-' ? d.kabelPrecon : <span className="text-slate-300">-</span>}</td>
-                                  <td className="p-4">
-                                    <select 
-                                        value={d.status} 
-                                        onChange={(e) => updateStatus(d.id, e.target.value)} 
-                                        className={`text-xs font-black tracking-wider uppercase rounded-lg px-3 py-1.5 outline-none border-2 cursor-pointer transition-colors shadow-sm
-                                            ${d.status === 'INSTALL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-300' : 
-                                              d.status === 'RETURN' ? 'bg-red-50 text-red-700 border-red-200 hover:border-red-300' : 
-                                              'bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-300'}`}
-                                    >
-                                      <option value="BELUM">BELUM</option>
-                                      <option value="INSTALL">INSTALL</option>
-                                      <option value="RETURN">RETURN</option>
-                                    </select>
-                                  </td>
-                                  <td className="p-4 text-center pr-6">
-                                    <button 
-                                        onClick={() => requestDeleteOutbound(d.id)} 
-                                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition opacity-0 group-hover:opacity-100 focus:opacity-100" 
-                                        title="Hapus Data"
-                                    >
-                                      <IconTrash />
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                              {paginatedOutbound.length === 0 && (
-                                  <tr>
-                                      <td colSpan="6" className="p-12 text-center text-slate-400">
-                                          <div className="flex flex-col items-center justify-center">
-                                              <IconSearch />
-                                              <p className="mt-2 font-medium">Belum ada history transaksi.</p>
-                                          </div>
-                                      </td>
-                                  </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                        
-                        {/* Pagination Controls */}
-                        {totalPages > 1 && (
-                          <div className="p-4 border-t bg-slate-50 flex justify-between items-center px-6">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Sebelumnya</button>
-                            <span className="text-sm font-bold text-slate-500 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">Hal {currentPage} dari {totalPages}</span>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Berikutnya</button>
+                          <div className="text-right">
+                              <p className="text-sm"><span className="font-bold inline-block w-24">Teknisi</span>: <span className="font-black text-lg">{suratJalanData.teknisi}</span></p>
+                              <p className="text-sm"><span className="font-bold inline-block w-24">Status</span>: Keluar Gudang (BELUM)</p>
                           </div>
-                        )}
                       </div>
-                    </div>
+
+                      <table className="w-full text-left text-sm border-collapse mb-12">
+                          <thead>
+                              <tr className="border-b-2 border-black">
+                                  <th className="p-3 border border-slate-300">No</th>
+                                  <th className="p-3 border border-slate-300">Nama Barang / Material</th>
+                                  <th className="p-3 border border-slate-300">Serial Number (SN) / Detail</th>
+                                  <th className="p-3 border border-slate-300 text-center">Qty</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {suratJalanData.items.map((item, idx) => (
+                                  <tr key={item.id}>
+                                      <td className="p-3 border border-slate-300">{idx + 1}</td>
+                                      <td className="p-3 border border-slate-300 font-bold">{item.namaBarang === 'Kabel Precon' ? item.kabelPrecon : item.namaBarang}</td>
+                                      <td className="p-3 border border-slate-300 font-mono">{item.sn !== '-' ? item.sn : item.keterangan}</td>
+                                      <td className="p-3 border border-slate-300 text-center">{item.qty} {item.unit}</td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+
+                      <div className="flex justify-between px-16 mt-16 text-center">
+                          <div>
+                              <p className="mb-20">Admin Gudang (Yang Menyerahkan),</p>
+                              <p className="font-bold underline">_________________________</p>
+                          </div>
+                          <div>
+                              <p className="mb-20">Teknisi (Yang Menerima),</p>
+                              <p className="font-bold underline">{suratJalanData.teknisi}</p>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {/* --- MAIN APP WRAPPER --- */}
+              <div className={`p-4 md:p-8 ${suratJalanData ? 'print:hidden' : ''}`}>
+                  
+                  {/* Custom Delete Confirmation Modal */}
+                  {confirmModal && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm modal-overlay">
+                          <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-8 max-w-sm w-full">
+                              <IconAlertCircle />
+                              <h3 className="text-xl font-black text-center text-slate-800 mb-2">{confirmModal.title}</h3>
+                              <p className="text-center text-slate-600 text-sm mb-6">{confirmModal.message}</p>
+                              <div className="flex gap-3">
+                                  <button onClick={() => setConfirmModal(null)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Batal</button>
+                                  <button onClick={confirmDeleteOutbound} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-lg shadow-red-600/30">Hapus</button>
+                              </div>
+                          </div>
+                      </div>
                   )}
 
-                  {}
-                  {activeTab === 'master' && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
-                        <div>
-                          <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><IconPackage /></div> Master Data SN</h3>
-                          <p className="text-sm text-slate-500 mt-2 font-medium">Database perangkat siap deploy. Total: <span className="font-black text-slate-800">{masterData.length}</span> item tersimpan.</p>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                            {isAdminUnlocked ? (
-                                <button onClick={handleLockAdmin} className="bg-red-50 text-red-600 hover:bg-red-100 font-bold p-3 rounded-xl transition" title="Kunci Akses">
-                                    <IconLock />
-                                </button>
-                            ) : null}
-                            
-                            <button onClick={() => isAdminUnlocked ? setShowImport(!showImport) : setPasswordModal(true)} className={`font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition shadow-sm ${showImport ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : isAdminUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20' : 'bg-slate-800 text-white hover:bg-slate-900'}`}>
-                              {!isAdminUnlocked ? <IconLock /> : showImport ? <IconClose /> : <IconUpload />} 
-                              {!isAdminUnlocked ? 'Buka Akses Input' : showImport ? 'Tutup Panel Import' : 'Import Massal (Excel)'}
-                            </button>
-                        </div>
+                  {/* Password Lock Modal */}
+                  {passwordModal && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm modal-overlay">
+                          <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-8 max-w-sm w-full">
+                              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                  <IconLock />
+                              </div>
+                              <h3 className="text-xl font-black text-center text-slate-800 mb-2">Area Terbatas</h3>
+                              <p className="text-center text-slate-600 text-sm mb-6">Masukkan password admin untuk membuka akses ke fungsi ini.</p>
+                              <form onSubmit={submitAdminPassword}>
+                                  <input 
+                                      type="password" 
+                                      autoFocus
+                                      value={adminPasswordInput} 
+                                      onChange={e => setAdminPasswordInput(e.target.value)} 
+                                      placeholder="Password..." 
+                                      className="w-full border-2 border-slate-200 rounded-xl p-3 text-center text-lg focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none font-bold bg-slate-50 transition mb-4"
+                                  />
+                                  <div className="flex gap-3">
+                                      <button type="button" onClick={() => setPasswordModal(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Batal</button>
+                                      <button type="submit" className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition shadow-lg shadow-red-600/30">Buka Akses</button>
+                                  </div>
+                              </form>
+                          </div>
                       </div>
+                  )}
 
-                      {/* Import Panel (Admin Only) */}
-                      {showImport && isAdminUnlocked && (
-                        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg shadow-blue-900/5 border border-blue-100 space-y-4 animate-in slide-in-from-top-4">
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-black text-lg text-slate-800 flex items-center gap-2"><IconUnlock /> Area Admin: Paste Data SN</h4>
-                            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Copy dari Excel/Spreadsheet</span>
+                  {/* Camera Scanner Modal */}
+                  {isScannerOpen && (
+                      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm modal-overlay">
+                          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md flex flex-col">
+                              <div className="flex justify-between items-center mb-4">
+                                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><IconCamera /> Scan Barcode</h3>
+                                  <button onClick={() => setIsScannerOpen(false)} className="text-slate-400 hover:text-red-500"><IconClose /></button>
+                              </div>
+                              <div className="w-full bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-2 overflow-hidden relative min-h-[280px]">
+                                  <div id="reader" className="w-full h-full"></div>
+                              </div>
+                              <p className="text-xs text-center text-slate-500 mt-4">Arahkan kamera ke barcode SN perangkat. Pastikan pencahayaan cukup.</p>
                           </div>
+                      </div>
+                  )}
+
+                  <div className="max-w-7xl mx-auto space-y-6">
+                    
+                    {/* Header Section */}
+                    <header className="bg-blue-800 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-blue-900/10 flex flex-col md:flex-row justify-between items-center gap-4 no-print relative overflow-hidden">
+                      <div className="absolute top-0 right-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
+                          <svg width="200" height="200" viewBox="0 0 24 24" fill="currentColor"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                      </div>
+                      <div className="relative z-10 text-center md:text-left">
+                        <h1 className="text-3xl font-black tracking-tight flex items-center justify-center md:justify-start gap-3">
+                            <span className="bg-white/20 p-2 rounded-xl backdrop-blur-sm"><IconPackage /></span> 
+                            Inventory Tracker
+                        </h1>
+                        <p className="text-blue-200 mt-2 font-medium text-sm md:text-base">Sinkronisasi Real-time Database Gudang & Lapangan</p>
+                      </div>
+                      <div className="flex gap-3 items-center relative z-10">
+                        <button onClick={fetchData} className="bg-white/10 backdrop-blur-sm px-4 py-2.5 rounded-xl text-sm font-bold border border-white/20 flex items-center gap-2 hover:bg-white/20 transition shadow-sm">
+                          <span className={isLoading ? 'animate-spin' : ''}>🔄</span> {isLoading ? 'Memuat...' : 'Sinkronkan'}
+                        </button>
+                        <button onClick={() => { localStorage.removeItem('gs_url'); setScriptUrl(''); }} className="text-blue-200 hover:text-white px-3 py-2.5 rounded-xl text-sm font-bold transition hover:bg-white/10">
+                            Putus Koneksi
+                        </button>
+                      </div>
+                    </header>
+
+                    {/* Toast Notification */}
+                    {toast && (
+                      <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-xl text-sm font-bold text-white transition-all transform duration-300 translate-y-0 ${toast.type === 'error' ? 'bg-red-600 shadow-red-600/30' : 'bg-emerald-600 shadow-emerald-600/30'}`}>
+                        {toast.msg}
+                      </div>
+                    )}
+
+                    {/* Navigation Tabs */}
+                    <nav className="flex flex-wrap gap-2 p-1.5 bg-white/50 backdrop-blur-sm border border-slate-200 rounded-2xl no-print shadow-sm">
+                      {[
+                        { id: 'dashboard', label: 'Dashboard Utama', icon: IconDashboard },
+                        { id: 'scan', label: 'Barang Keluar & Scan', icon: IconExchange },
+                        { id: 'master', label: 'Master Data SN', icon: IconPackage },
+                        { id: 'cable-stock', label: 'Database Kabel', icon: IconLayers },
+                        { id: 'report-admin', label: 'Laporan Admin', icon: IconChart },
+                        { id: 'report-tech', label: 'Laporan Teknisi', icon: IconUsers },
+                      ].map(tab => (
+                        <button 
+                            key={tab.id} 
+                            onClick={() => setActiveTab(tab.id)} 
+                            className={`flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all flex-1 justify-center gap-2 min-w-[140px]
+                                ${activeTab === tab.id ? 'bg-white text-blue-700 shadow-md ring-1 ring-slate-900/5' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800'}`}
+                        >
+                          <tab.icon /> <span className="hidden sm:inline">{tab.label}</span>
+                        </button>
+                      ))}
+                    </nav>
+
+                    {}
+                    <main className="space-y-6 print-container">
+                      
+                      {/* DASHBOARD TAB */}
+                      {activeTab === 'dashboard' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
                           
-                          <div className="bg-slate-50 rounded-xl p-4 border text-xs text-slate-600 font-mono space-y-1">
-                              <p className="font-bold font-sans text-slate-700 mb-2">Format yang didukung (Pilih salah satu format kolom):</p>
-                              <p><span className="text-slate-400">1 Kolom:</span> <span className="text-blue-700">Serial_Number</span></p>
-                              <p><span className="text-slate-400">2 Kolom:</span> Nama_Item [Tab] <span className="text-blue-700">Serial_Number</span></p>
-                              <p><span className="text-slate-400">3 Kolom:</span> Nama_Item [Tab] <span className="text-blue-700">Serial_Number</span> [Tab] Kode_Box</p>
+                          {/* Hero Banner */}
+                          <div className="bg-gradient-to-br from-indigo-600 via-blue-700 to-blue-800 text-white p-8 md:p-10 rounded-[2rem] shadow-xl flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
+                            <div className="relative z-10 text-center md:text-left">
+                              <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-2">Pantau Gudang Cerdas</h2>
+                              <p className="text-blue-100 font-medium max-w-xl text-lg opacity-90">Sistem terintegrasi pemantauan material IKR & FTTH secara real-time untuk efisiensi maksimal.</p>
+                            </div>
+                            <div className="relative z-10 w-full md:w-auto">
+                              <button onClick={() => setActiveTab('scan')} className="w-full md:w-auto bg-white text-blue-800 font-bold px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl hover:bg-slate-50 transition-all hover:-translate-y-1 flex items-center justify-center gap-2">
+                                  <IconExchange /> Mulai Proses Scan
+                              </button>
+                            </div>
                           </div>
-                          
-                          <textarea 
-                              value={importData} 
-                              onChange={e => setImportData(e.target.value)} 
-                              rows="8" 
-                              className="w-full border-2 border-slate-200 rounded-xl p-4 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-mono bg-white resize-y" 
-                              placeholder="Contoh Paste:&#10;ZTEG12345678&#10;ZTEG87654321"
-                          ></textarea>
-                          
-                          <button onClick={handleBulkImport} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">Mulai Proses Import</button>
+
+                          {/* KPI Metrics Cards */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-3"><IconPackage /></div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Stok Master Ready</p>
+                              <p className="text-3xl font-black text-slate-800 mt-1">{masterData.length} <span className="text-sm font-medium text-slate-400">Unit</span></p>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3"><IconExchange /></div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Keluar</p>
+                              <p className="text-3xl font-black text-slate-800 mt-1">{outboundData.length} <span className="text-sm font-medium text-slate-400">Item</span></p>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status Terpasang</p>
+                              <p className="text-3xl font-black text-slate-800 mt-1">{outboundData.filter(d => d.status === 'INSTALL').length} <span className="text-sm font-medium text-slate-400">Item</span></p>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3"><IconAlertCircle /></div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Belum / Return</p>
+                              <p className="text-3xl font-black text-slate-800 mt-1">{outboundData.filter(d => d.status !== 'INSTALL').length} <span className="text-sm font-medium text-slate-400">Item</span></p>
+                            </div>
+                          </div>
+
+                          {/* Interactive Charts Section */}
+                          <div className="grid md:grid-cols-2 gap-6">
+                            
+                            {/* Bar Chart Card */}
+                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 flex flex-col h-[380px]">
+                                <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-4">
+                                    <div className="p-2 bg-slate-100 rounded-lg"><IconChart /></div> Distribusi Barang Keluar
+                                </h3>
+                                <div className="flex-1">
+                                    <CustomBarChart data={barChartData} />
+                                </div>
+                            </div>
+
+                            {/* Donut Chart Card */}
+                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 flex flex-col h-[380px]">
+                                <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-4">
+                                    <div className="p-2 bg-slate-100 rounded-lg"><IconUsers /></div> Top Teknisi (Terpasang Bulan Ini)
+                                </h3>
+                                <div className="flex-1">
+                                    <CustomDonutChart data={pieChartData} />
+                                </div>
+                            </div>
+
+                          </div>
+
+                          {/* Inventory Stock Watching Panels */}
+                          <div className="grid md:grid-cols-2 gap-6">
+                            {/* Dynamic Device Stock */}
+                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col h-[350px]">
+                              <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-6"><div className="p-2 bg-slate-100 rounded-lg"><IconPackage /></div> Pantauan Stok Perangkat</h3>
+                              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                                {deviceStockSummary.map(([itemName, stock]) => {
+                                    const isLow = stock <= 5 && stock > 0;
+                                    const isEmpty = stock <= 0;
+                                    
+                                    return (
+                                    <div key={itemName} className={`p-4 rounded-2xl border transition-colors ${isEmpty ? 'bg-red-50 border-red-100' : isLow ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <p className={`font-bold text-sm line-clamp-2 pr-4 ${isEmpty ? 'text-red-900' : isLow ? 'text-amber-900' : 'text-slate-800'}`}>{itemName}</p>
+                                            <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-black ${isEmpty ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-700' : 'bg-white text-slate-600 shadow-sm'}`}>
+                                                {stock} Unit
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-black/5 rounded-full h-1.5 mt-2 overflow-hidden">
+                                            <div className={`h-1.5 rounded-full ${isEmpty ? 'bg-red-500 w-full' : isLow ? 'bg-amber-400 w-1/4' : 'bg-blue-400 w-3/4'}`}></div>
+                                        </div>
+                                    </div>
+                                    )
+                                })}
+                                {deviceStockSummary.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                        <IconPackage />
+                                        <p className="text-sm mt-2">Master Data Kosong.</p>
+                                    </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Cable Stock Panel */}
+                             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col h-[350px]">
+                              <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-6"><div className="p-2 bg-slate-100 rounded-lg"><IconLayers /></div> Pantauan Stok Kabel</h3>
+                              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                                {CABLE_ITEMS.map(item => {
+                                    const stat = cableStockSummary[item] || { sisa: 0 };
+                                    const isLow = stat.sisa <= 10 && stat.sisa > 0;
+                                    const isEmpty = stat.sisa <= 0;
+                                    
+                                    return (
+                                    <div key={item} className={`p-4 rounded-2xl border transition-colors ${isEmpty ? 'bg-red-50 border-red-100' : isLow ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <p className={`font-bold text-sm line-clamp-2 pr-4 ${isEmpty ? 'text-red-900' : isLow ? 'text-amber-900' : 'text-slate-800'}`}>{item}</p>
+                                            <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-black ${isEmpty ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-700' : 'bg-white text-slate-600 shadow-sm'}`}>
+                                                {stat.sisa} Pcs
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-black/5 rounded-full h-1.5 mt-2 overflow-hidden">
+                                            <div className={`h-1.5 rounded-full ${isEmpty ? 'bg-red-500 w-full' : isLow ? 'bg-amber-400 w-1/4' : 'bg-emerald-400 w-3/4'}`}></div>
+                                        </div>
+                                    </div>
+                                    )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Recent Outbound Log */}
+                          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col">
+                              <h3 className="font-black text-lg text-slate-800 flex items-center gap-3 mb-6"><div className="p-2 bg-slate-100 rounded-lg"><IconExchange /></div> Aktivitas Barang Keluar Terbaru</h3>
+                              <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[300px]">
+                                {outboundData.slice(0, 8).map(d => (
+                                  <div key={d.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center group bg-slate-50 p-4 rounded-2xl border border-slate-100 gap-4">
+                                    <div className="flex gap-4 items-center">
+                                        <div className={`w-3 h-3 rounded-full shrink-0 ${d.status === 'INSTALL' ? 'bg-emerald-500' : d.status === 'RETURN' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                                        <div>
+                                            <p className="font-bold text-sm text-slate-800">{d.namaBarang} {d.kabelPrecon !== '-' ? <span className="text-slate-500 font-normal">({d.kabelPrecon})</span> : ''}</p>
+                                            <p className="text-xs text-slate-500 mt-1">{d.namaTeknisi} • <span className="font-mono">{d.waktuScan}</span></p>
+                                        </div>
+                                    </div>
+                                    <span className={`self-start sm:self-center px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase shrink-0 ${d.status === 'INSTALL' ? 'bg-emerald-100 text-emerald-800' : d.status === 'RETURN' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                                      {d.status}
+                                    </span>
+                                  </div>
+                                ))}
+                                {outboundData.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-400 py-10">
+                                        <IconSearch />
+                                        <p className="text-sm mt-2">Belum ada aktivitas barang keluar.</p>
+                                    </div>
+                                )}
+                              </div>
+                          </div>
+
                         </div>
                       )}
 
-                      {/* Data Table */}
-                      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
-                          <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-slate-50 text-slate-500 font-bold sticky top-0 z-10 text-xs uppercase tracking-wider shadow-sm">
-                              <tr>
-                                <th className="p-5 pl-8 border-b border-slate-200">No</th>
-                                <th className="p-5 border-b border-slate-200">Kategori Item</th>
-                                <th className="p-5 border-b border-slate-200">Serial Number (SN)</th>
-                                <th className="p-5 pr-8 border-b border-slate-200">Kode / Box</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {masterData.map((d, i) => (
-                                <tr key={i} className="hover:bg-blue-50/50 transition-colors">
-                                  <td className="p-5 pl-8 text-slate-400 font-mono text-xs">{i + 1}</td>
-                                  <td className="p-5 font-bold text-slate-700">{d.item}</td>
-                                  <td className="p-5 font-mono font-bold text-blue-700">
-                                      <span className="bg-blue-50 px-3 py-1 rounded-lg border border-blue-100 select-all">{d.sn}</span>
-                                  </td>
-                                  <td className="p-5 pr-8 text-slate-500 font-medium">{d.code}</td>
-                                </tr>
-                              ))}
-                              {masterData.length === 0 && (
-                                  <tr>
-                                      <td colSpan="4" className="p-16 text-center text-slate-400">
-                                          <div className="flex flex-col items-center justify-center">
-                                              <IconPackage />
-                                              <p className="mt-4 font-bold text-lg text-slate-600">Gudang Kosong</p>
-                                              <p className="mt-1 text-sm">Data Master belum diisi. Silakan Buka Akses dan gunakan fitur Import.</p>
-                                          </div>
-                                      </td>
-                                  </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {}
-                  {activeTab === 'cable-stock' && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <div className="grid md:grid-cols-2 gap-6">
-                        
-                        {/* Stock Summary Widget */}
-                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col h-full">
-                           <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800 mb-6"><div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><IconLayers /></div> Pantauan Fisik Kabel</h3>
-                           
-                           <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                              {CABLE_ITEMS.map(item => {
-                                const stat = cableStockSummary[item] || { masuk: 0, keluar: 0, sisa: 0 };
-                                const isLow = stat.sisa <= 10 && stat.sisa > 0;
-                                const isEmpty = stat.sisa <= 0;
-
-                                return (
-                                  <div key={item} className="bg-slate-50/50 border border-slate-200 p-5 rounded-2xl transition hover:shadow-md hover:bg-white">
-                                    <p className="font-bold text-sm text-slate-800 mb-4 truncate" title={item}>{item}</p>
-                                    <div className="grid grid-cols-3 gap-3 text-center text-xs font-black uppercase tracking-wider">
-                                      <div className="bg-blue-50 text-blue-700 py-3 rounded-xl border border-blue-100">
-                                          <span className="block text-[10px] text-blue-400 mb-1">Masuk</span>
-                                          <span className="text-lg">{stat.masuk}</span>
-                                      </div>
-                                      <div className="bg-orange-50 text-orange-700 py-3 rounded-xl border border-orange-100">
-                                          <span className="block text-[10px] text-orange-400 mb-1">Keluar</span>
-                                          <span className="text-lg">{stat.keluar}</span>
-                                      </div>
-                                      <div className={`py-3 rounded-xl border flex flex-col justify-center ${isEmpty ? 'bg-red-50 text-red-700 border-red-200 shadow-inner' : isLow ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm'}`}>
-                                          <span className={`block text-[10px] mb-1 ${isEmpty ? 'text-red-400' : isLow ? 'text-amber-500' : 'text-emerald-500'}`}>Sisa Stok</span>
-                                          <span className="text-xl">{stat.sisa}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                           </div>
-                        </div>
-
-                        {/* Inbound Form (Admin Only) */}
-                        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 relative overflow-hidden h-fit">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
-                          
-                          <div className="relative z-10 flex justify-between items-start">
-                              <div>
-                                  <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><IconPlus /></div> Restock Kabel Masuk</h3>
-                                  <p className="text-slate-500 text-sm mt-1">Catat penerimaan material kabel baru dari pusat.</p>
-                              </div>
-                              {isAdminUnlocked && (
-                                  <button onClick={handleLockAdmin} className="bg-red-50 text-red-600 hover:bg-red-100 font-bold p-3 rounded-xl transition shadow-sm" title="Kunci Akses">
-                                      <IconLock />
-                                  </button>
-                              )}
-                          </div>
-                          
-                          {!isAdminUnlocked ? (
-                              <div className="relative z-10 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center mt-6">
-                                  <div className="w-16 h-16 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center mb-4">
-                                      <IconLock />
-                                  </div>
-                                  <h4 className="font-black text-slate-700 mb-2">Area Terkunci</h4>
-                                  <p className="text-sm text-slate-500 mb-6 max-w-xs">Hanya admin yang dapat mencatat material masuk.</p>
-                                  <button onClick={() => setPasswordModal(true)} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition">Buka Akses Input</button>
-                              </div>
-                          ) : (
-                              <form onSubmit={handleAddCableInbound} className="space-y-4 relative z-10 mt-6 animate-in fade-in">
+                      {}
+                      {activeTab === 'scan' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                          <div className="grid md:grid-cols-2 gap-6">
+                            
+                            {/* Device Scanner Form */}
+                            <form onSubmit={handleScan} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-[100px] -z-0"></div>
+                              
+                              <div className="relative z-10 flex justify-between items-start">
                                   <div>
-                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Pilih Item Material</label>
-                                    <select value={newCableItem} onChange={e => setNewCableItem(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-3.5 text-xs sm:text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none font-bold bg-slate-50 transition cursor-pointer">
+                                      <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><IconExchange /></div> Scan Perangkat</h3>
+                                      <p className="text-slate-500 text-sm mt-1">Keluarkan ONT/STB dari Master Data ke Teknisi.</p>
+                                  </div>
+                                  <button type="button" onClick={() => setIsScannerOpen(true)} className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-3 rounded-xl shadow-sm transition" title="Buka Kamera Scanner">
+                                      <IconCamera />
+                                  </button>
+                              </div>
+                              
+                              <div className="space-y-4 relative z-10">
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Penugasan Teknisi</label>
+                                    <select value={selectedTech} onChange={e => setSelectedTech(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-bold bg-slate-50 transition cursor-pointer">
+                                      {TECHNICIANS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                  </div>
+                                  
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Scan Barcode / SN (Manual atau Kamera)</label>
+                                    <input type="text" value={scanSn} onChange={e => setScanSn(e.target.value)} autoFocus placeholder="Arahkan scanner ke sini..." className="w-full border-2 border-slate-200 rounded-xl p-4 text-base focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-mono font-bold bg-slate-50 transition placeholder:font-sans placeholder:font-normal"/>
+                                  </div>
+                              </div>
+                              
+                              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-blue-600/30 relative z-10 text-lg">Proses & Tugaskan</button>
+                            </form>
+
+                            {/* Manual Cable Form */}
+                            <form onSubmit={handleManualAdd} className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-[100px] -z-0"></div>
+                              
+                              <div className="relative z-10">
+                                  <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><IconPlus /></div> Input Manual Kabel</h3>
+                                  <p className="text-slate-500 text-sm mt-1">Catat pengeluaran kabel Precon ke Teknisi.</p>
+                              </div>
+                              
+                              <div className="space-y-4 relative z-10">
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Pilih Item Kabel</label>
+                                    <select value={manualItem} onChange={e => setManualItem(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-3.5 text-xs sm:text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold bg-slate-50 transition cursor-pointer">
                                       {CABLE_ITEMS.map(i => <option key={i} value={i}>{i}</option>)}
                                     </select>
                                   </div>
                                   
                                   <div>
-                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Jumlah Diterima (Pcs)</label>
-                                    <input type="number" min="1" value={newCableQty} onChange={e => setNewCableQty(e.target.value)} placeholder="Masukkan angka bulat..." className="w-full border-2 border-slate-200 rounded-xl p-4 text-base focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none font-mono font-bold bg-slate-50 transition placeholder:font-sans placeholder:font-normal"/>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Jumlah Keluar (Pcs)</label>
+                                    <input type="number" min="1" value={manualQty} onChange={e => setManualQty(e.target.value)} placeholder="Contoh: 2" className="w-full border-2 border-slate-200 rounded-xl p-4 text-base focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none font-mono font-bold bg-slate-50 transition placeholder:font-sans placeholder:font-normal"/>
                                   </div>
-                                  
-                                  <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-emerald-600/30 relative z-10 text-lg flex justify-center gap-2 items-center"><IconUnlock /> Simpan ke Database Stok</button>
-                              </form>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {}
-                  {(activeTab === 'report-admin' || activeTab === 'report-tech') && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      
-                      {/* Filter Controls */}
-                      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 no-print">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                          <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800">
-                            <div className="p-2 bg-slate-100 text-slate-700 rounded-xl">
-                                {activeTab === 'report-admin' ? <IconChart /> : <IconUsers />}
-                            </div> 
-                            Pusat Laporan {activeTab === 'report-admin' ? 'Global Gudang' : 'Kinerja Teknisi'}
-                          </h3>
-                          <div className="flex gap-3 w-full md:w-auto">
-                            <button onClick={exportToExcel} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Unduh Excel
-                            </button>
-                            <button onClick={exportToPDF} className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition shadow-md flex items-center justify-center gap-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Cetak PDF
-                            </button>
+                              </div>
+                              
+                              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-indigo-600/30 relative z-10 text-lg">Catat Pengeluaran</button>
+                            </form>
                           </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                          <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Periode</label>
-                              <select value={reportType} onChange={e => setReportType(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
-                                <option value="harian">Harian</option>
-                                <option value="mingguan">Mingguan</option>
-                                <option value="bulanan">Bulanan</option>
-                              </select>
-                          </div>
-                          
-                          {reportType === 'harian' && (
+                          {/* History Table */}
+                          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div className="p-6 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
                               <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Tanggal</label>
-                                  <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"/>
+                                  <h3 className="font-black text-lg text-slate-800">History Barang Keluar</h3>
+                                  <p className="text-xs text-slate-500">Log aktivitas terbaru dari gudang.</p>
                               </div>
-                          )}
-                          
-                          {(reportType === 'mingguan' || reportType === 'bulanan') && (
-                            <>
-                              <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Bulan</label>
-                                  <select value={reportMonth} onChange={e => setReportMonth(Number(e.target.value))} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
-                                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Tahun</label>
-                                  <select value={reportYear} onChange={e => setReportYear(Number(e.target.value))} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
-                                    {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                                  </select>
-                              </div>
-                            </>
-                          )}
-                          
-                          {reportType === 'mingguan' && (
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Pekan</label>
-                                <select value={reportWeek} onChange={e => setReportWeek(Number(e.target.value))} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
-                                  {[1, 2, 3, 4, 5].map(w => <option key={w} value={w}>Minggu ke-{w}</option>)}
-                                </select>
+                              <span className="text-xs bg-blue-100 text-blue-800 px-4 py-1.5 rounded-full font-black uppercase tracking-wider">Total Data: {outboundData.length}</span>
                             </div>
-                          )}
-
-                          {activeTab === 'report-tech' && (
-                            <div className="md:col-span-full">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Target Teknisi</label>
-                                <select value={reportTech} onChange={e => setReportTech(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
-                                  {TECHNICIANS.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Collapsible Summary Table */}
-                      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 mb-6 print-container break-inside-avoid">
-                        <div className="p-6 md:p-8 flex flex-col items-center border-b border-slate-100 relative">
-                            <h4 className="font-black text-2xl uppercase tracking-widest text-slate-800 text-center">
-                            Ringkasan {activeTab === 'report-admin' ? 'Global Gudang' : `Kinerja Teknisi: ${reportTech}`}
-                            </h4>
-                            <p className="text-sm font-medium text-slate-500 mt-2 bg-slate-50 inline-block px-4 py-1.5 rounded-full border mb-4">
-                                Periode: <span className="font-bold text-slate-700">{reportType === 'harian' ? reportDate : reportType === 'mingguan' ? `Minggu ${reportWeek}, ${MONTHS[reportMonth]} ${reportYear}` : `${MONTHS[reportMonth]} ${reportYear}`}</span>
-                            </p>
-                            
-                            <button 
-                                onClick={() => setShowSummaryTable(!showSummaryTable)} 
-                                className="no-print absolute bottom-0 translate-y-1/2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-6 py-2 rounded-full shadow-sm border border-blue-200 flex items-center gap-2 transition"
-                            >
-                                <IconEye /> {showSummaryTable ? 'Sembunyikan Tabel Ringkasan' : 'Tampilkan Tabel Ringkasan'}
-                            </button>
-                        </div>
-                        
-                        {/* The actual table - conditional rendering */}
-                        {(showSummaryTable || false) && (
-                            <div className="overflow-x-auto rounded-b-3xl animate-in slide-in-from-top-4 p-4">
-                              <table className="w-full text-sm text-left border rounded-xl overflow-hidden">
-                                <thead className="bg-slate-50 border-b">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="bg-slate-50 text-slate-500 font-bold border-b text-xs uppercase tracking-wider">
                                   <tr>
-                                    <th className="p-4 border-r text-xs font-black uppercase tracking-wider text-slate-500">Nama Barang / Material</th>
-                                    <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-slate-500 w-24">Satuan</th>
-                                    <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 w-32">Total Keluar</th>
-                                    <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 w-32">Terpasang</th>
-                                    <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-amber-800 bg-amber-100 w-32">Pending</th>
-                                    <th className="p-4 text-center text-xs font-black uppercase tracking-wider text-red-800 bg-red-100 w-32">Return</th>
+                                    <th className="p-4 pl-6">Waktu</th>
+                                    <th className="p-4">Teknisi</th>
+                                    <th className="p-4">Detail Item (SN)</th>
+                                    <th className="p-4">Kabel</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4 text-center pr-6">Aksi & Surat Jalan</th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y">
-                                  {Object.entries(reportAdminStats).filter(([_, s]) => s.total > 0).map(([item, s]) => (
-                                    <tr key={item} className="hover:bg-slate-50 transition-colors">
-                                      <td className="p-4 border-r font-bold text-slate-700 text-xs">{item}</td>
-                                      <td className="p-4 border-r text-center text-xs font-medium text-slate-500">{s.unit}</td>
-                                      <td className="p-4 border-r text-center font-black text-lg bg-slate-50/50">{s.total}</td>
-                                      <td className="p-4 border-r text-center font-black text-emerald-700 bg-emerald-50/50 text-lg">{s.install}</td>
-                                      <td className="p-4 border-r text-center font-black text-amber-700 bg-amber-50/50 text-lg">{s.belum}</td>
-                                      <td className="p-4 text-center font-black text-red-700 bg-red-50/50 text-lg">{s.return}</td>
+                                <tbody className="divide-y divide-slate-100">
+                                  {paginatedOutbound.map(d => (
+                                    <tr key={d.id} className="hover:bg-blue-50/30 transition-colors group">
+                                      <td className="p-4 pl-6">
+                                          <div className="font-mono text-slate-600 font-medium">{d.waktuScan.split(' ')[0]}</div>
+                                          <div className="text-xs text-slate-400 font-mono">{d.waktuScan.split(' ')[1]}</div>
+                                      </td>
+                                      <td className="p-4 font-black text-slate-700">{d.namaTeknisi}</td>
+                                      <td className="p-4">
+                                        <div className="font-bold text-blue-700 bg-blue-50 inline-block px-2 py-0.5 rounded text-xs mb-1">{d.sn !== '-' ? d.sn : d.namaBarang}</div>
+                                        <div className="text-xs text-slate-500">{d.namaBarang !== 'Kabel Precon' ? d.namaBarang : d.keterangan}</div>
+                                      </td>
+                                      <td className="p-4 text-xs font-medium text-slate-600">{d.kabelPrecon !== '-' ? d.kabelPrecon : <span className="text-slate-300">-</span>}</td>
+                                      <td className="p-4">
+                                        <select 
+                                            value={d.status} 
+                                            onChange={(e) => updateStatus(d.id, e.target.value)} 
+                                            className={`text-xs font-black tracking-wider uppercase rounded-lg px-3 py-1.5 outline-none border-2 cursor-pointer transition-colors shadow-sm
+                                                ${d.status === 'INSTALL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-300' : 
+                                                  d.status === 'RETURN' ? 'bg-red-50 text-red-700 border-red-200 hover:border-red-300' : 
+                                                  'bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-300'}`}
+                                        >
+                                          <option value="BELUM">BELUM</option>
+                                          <option value="INSTALL">INSTALL</option>
+                                          <option value="RETURN">RETURN</option>
+                                        </select>
+                                      </td>
+                                      <td className="p-4 text-center pr-6 flex justify-center gap-2">
+                                        <button 
+                                            onClick={() => handlePrintSuratJalan(d)} 
+                                            className="text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100" 
+                                            title="Cetak Surat Jalan (PDF)"
+                                        >
+                                          <IconPrinter /> Cetak Bukti
+                                        </button>
+                                        <button 
+                                            onClick={() => requestDeleteOutbound(d.id)} 
+                                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition opacity-0 group-hover:opacity-100 focus:opacity-100" 
+                                            title="Hapus Data"
+                                        >
+                                          <IconTrash />
+                                        </button>
+                                      </td>
                                     </tr>
                                   ))}
-                                  {Object.entries(reportAdminStats).filter(([_, s]) => s.total > 0).length === 0 && (
-                                    <tr>
-                                        <td colSpan="6" className="p-12 text-center text-slate-400">
-                                            <div className="flex flex-col items-center justify-center">
-                                                <IconChart />
-                                                <p className="mt-2 font-medium">Tidak ada data transaksi untuk periode ini.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                  {paginatedOutbound.length === 0 && (
+                                      <tr>
+                                          <td colSpan="6" className="p-12 text-center text-slate-400">
+                                              <div className="flex flex-col items-center justify-center">
+                                                  <IconSearch />
+                                                  <p className="mt-2 font-medium">Belum ada history transaksi.</p>
+                                              </div>
+                                          </td>
+                                      </tr>
                                   )}
                                 </tbody>
                               </table>
                             </div>
-                        )}
-                        {/* Ensure print mode always shows the table by overriding with CSS if needed, but in React we just let user open it before printing for simplicity */}
-                      </div>
+                            
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                              <div className="p-4 border-t bg-slate-50 flex justify-between items-center px-6">
+                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Sebelumnya</button>
+                                <span className="text-sm font-bold text-slate-500 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">Hal {currentPage} dari {totalPages}</span>
+                                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Berikutnya</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
-                      {/* Detailed Log Table */}
-                      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden print-container mt-12">
-                        <div className="p-5 bg-slate-50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                              <h4 className="font-black text-slate-800">Rincian Log Transaksi</h4>
-                              <div className="flex items-center gap-2 no-print">
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filter:</span>
-                                  <select 
-                                      value={reportStatusFilter} 
-                                      onChange={e => setReportStatusFilter(e.target.value)}
-                                      className="text-xs font-bold border-2 border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 cursor-pointer text-slate-700 bg-white shadow-sm"
-                                  >
-                                      <option value="ALL">Semua Status</option>
-                                      <option value="INSTALL">INSTALL</option>
-                                      <option value="BELUM">BELUM (Pending)</option>
-                                      <option value="RETURN">RETURN</option>
+                      {}
+                      {activeTab === 'master' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                          
+                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
+                            <div>
+                              <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><IconPackage /></div> Master Data SN</h3>
+                              <p className="text-sm text-slate-500 mt-2 font-medium">Database perangkat siap deploy. Total: <span className="font-black text-slate-800">{masterData.length}</span> item tersimpan.</p>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                                {isAdminUnlocked ? (
+                                    <button onClick={handleLockAdmin} className="bg-red-50 text-red-600 hover:bg-red-100 font-bold p-3 rounded-xl transition" title="Kunci Akses">
+                                        <IconLock />
+                                    </button>
+                                ) : null}
+                                
+                                <button onClick={() => isAdminUnlocked ? setShowImport(!showImport) : setPasswordModal(true)} className={`font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition shadow-sm ${showImport ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : isAdminUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20' : 'bg-slate-800 text-white hover:bg-slate-900'}`}>
+                                  {!isAdminUnlocked ? <IconLock /> : showImport ? <IconClose /> : <IconUpload />} 
+                                  {!isAdminUnlocked ? 'Buka Akses Input' : showImport ? 'Tutup Panel Import' : 'Import Massal (Excel)'}
+                                </button>
+                            </div>
+                          </div>
+
+                          {/* Import Panel */}
+                          {showImport && isAdminUnlocked && (
+                            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg shadow-blue-900/5 border border-blue-100 space-y-4 animate-in slide-in-from-top-4">
+                              <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-black text-lg text-slate-800 flex items-center gap-2"><IconUnlock /> Area Admin: Paste Data SN</h4>
+                                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Copy dari Excel/Spreadsheet</span>
+                              </div>
+                              
+                              <div className="bg-slate-50 rounded-xl p-4 border text-xs text-slate-600 font-mono space-y-1">
+                                  <p className="font-bold font-sans text-slate-700 mb-2">Format yang didukung (Pilih salah satu format kolom):</p>
+                                  <p><span className="text-slate-400">1 Kolom:</span> <span className="text-blue-700">Serial_Number</span></p>
+                                  <p><span className="text-slate-400">2 Kolom:</span> Nama_Item [Tab] <span className="text-blue-700">Serial_Number</span></p>
+                                  <p><span className="text-slate-400">3 Kolom:</span> Nama_Item [Tab] <span className="text-blue-700">Serial_Number</span> [Tab] Kode_Box</p>
+                              </div>
+                              
+                              <textarea 
+                                  value={importData} 
+                                  onChange={e => setImportData(e.target.value)} 
+                                  rows="8" 
+                                  className="w-full border-2 border-slate-200 rounded-xl p-4 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none font-mono bg-white resize-y" 
+                                  placeholder="Contoh Paste:&#10;ZTEG12345678&#10;ZTEG87654321"
+                              ></textarea>
+                              
+                              <button onClick={handleBulkImport} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">Mulai Proses Import</button>
+                            </div>
+                          )}
+
+                          {/* Data Table */}
+                          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
+                              <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="bg-slate-50 text-slate-500 font-bold sticky top-0 z-10 text-xs uppercase tracking-wider shadow-sm">
+                                  <tr>
+                                    <th className="p-5 pl-8 border-b border-slate-200">No</th>
+                                    <th className="p-5 border-b border-slate-200">Kategori Item</th>
+                                    <th className="p-5 border-b border-slate-200">Serial Number (SN)</th>
+                                    <th className="p-5 pr-8 border-b border-slate-200">Kode / Box</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {masterData.map((d, i) => (
+                                    <tr key={i} className="hover:bg-blue-50/50 transition-colors">
+                                      <td className="p-5 pl-8 text-slate-400 font-mono text-xs">{i + 1}</td>
+                                      <td className="p-5 font-bold text-slate-700">{d.item}</td>
+                                      <td className="p-5 font-mono font-bold text-blue-700">
+                                          <span className="bg-blue-50 px-3 py-1 rounded-lg border border-blue-100 select-all">{d.sn}</span>
+                                      </td>
+                                      <td className="p-5 pr-8 text-slate-500 font-medium">{d.code}</td>
+                                    </tr>
+                                  ))}
+                                  {masterData.length === 0 && (
+                                      <tr>
+                                          <td colSpan="4" className="p-16 text-center text-slate-400">
+                                              <div className="flex flex-col items-center justify-center">
+                                                  <IconPackage />
+                                                  <p className="mt-4 font-bold text-lg text-slate-600">Gudang Kosong</p>
+                                                  <p className="mt-1 text-sm">Data Master belum diisi. Silakan Buka Akses dan gunakan fitur Import.</p>
+                                              </div>
+                                          </td>
+                                      </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {}
+                      {activeTab === 'cable-stock' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                          <div className="grid md:grid-cols-2 gap-6">
+                            
+                            {/* Stock Summary Widget */}
+                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 flex flex-col h-full">
+                               <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800 mb-6"><div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><IconLayers /></div> Pantauan Fisik Kabel</h3>
+                               
+                               <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                                  {CABLE_ITEMS.map(item => {
+                                    const stat = cableStockSummary[item] || { masuk: 0, keluar: 0, sisa: 0 };
+                                    const isLow = stat.sisa <= 10 && stat.sisa > 0;
+                                    const isEmpty = stat.sisa <= 0;
+
+                                    return (
+                                      <div key={item} className="bg-slate-50/50 border border-slate-200 p-5 rounded-2xl transition hover:shadow-md hover:bg-white">
+                                        <p className="font-bold text-sm text-slate-800 mb-4 truncate" title={item}>{item}</p>
+                                        <div className="grid grid-cols-3 gap-3 text-center text-xs font-black uppercase tracking-wider">
+                                          <div className="bg-blue-50 text-blue-700 py-3 rounded-xl border border-blue-100">
+                                              <span className="block text-[10px] text-blue-400 mb-1">Masuk</span>
+                                              <span className="text-lg">{stat.masuk}</span>
+                                          </div>
+                                          <div className="bg-orange-50 text-orange-700 py-3 rounded-xl border border-orange-100">
+                                              <span className="block text-[10px] text-orange-400 mb-1">Keluar</span>
+                                              <span className="text-lg">{stat.keluar}</span>
+                                          </div>
+                                          <div className={`py-3 rounded-xl border flex flex-col justify-center ${isEmpty ? 'bg-red-50 text-red-700 border-red-200 shadow-inner' : isLow ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm'}`}>
+                                              <span className={`block text-[10px] mb-1 ${isEmpty ? 'text-red-400' : isLow ? 'text-amber-500' : 'text-emerald-500'}`}>Sisa Stok</span>
+                                              <span className="text-xl">{stat.sisa}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                               </div>
+                            </div>
+
+                            {/* Inbound Form */}
+                            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 relative overflow-hidden h-fit">
+                              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
+                              
+                              <div className="relative z-10 flex justify-between items-start">
+                                  <div>
+                                      <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800"><div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><IconPlus /></div> Restock Kabel Masuk</h3>
+                                      <p className="text-slate-500 text-sm mt-1">Catat penerimaan material kabel baru dari pusat.</p>
+                                  </div>
+                                  {isAdminUnlocked && (
+                                      <button onClick={handleLockAdmin} className="bg-red-50 text-red-600 hover:bg-red-100 font-bold p-3 rounded-xl transition shadow-sm" title="Kunci Akses">
+                                          <IconLock />
+                                      </button>
+                                  )}
+                              </div>
+                              
+                              {!isAdminUnlocked ? (
+                                  <div className="relative z-10 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center mt-6">
+                                      <div className="w-16 h-16 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center mb-4">
+                                          <IconLock />
+                                      </div>
+                                      <h4 className="font-black text-slate-700 mb-2">Area Terkunci</h4>
+                                      <p className="text-sm text-slate-500 mb-6 max-w-xs">Hanya admin yang dapat mencatat material masuk.</p>
+                                      <button onClick={() => setPasswordModal(true)} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition">Buka Akses Input</button>
+                                  </div>
+                              ) : (
+                                  <form onSubmit={handleAddCableInbound} className="space-y-4 relative z-10 mt-6 animate-in fade-in">
+                                      <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Pilih Item Material</label>
+                                        <select value={newCableItem} onChange={e => setNewCableItem(e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-3.5 text-xs sm:text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none font-bold bg-slate-50 transition cursor-pointer">
+                                          {CABLE_ITEMS.map(i => <option key={i} value={i}>{i}</option>)}
+                                        </select>
+                                      </div>
+                                      
+                                      <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Jumlah Diterima (Pcs)</label>
+                                        <input type="number" min="1" value={newCableQty} onChange={e => setNewCableQty(e.target.value)} placeholder="Masukkan angka bulat..." className="w-full border-2 border-slate-200 rounded-xl p-4 text-base focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none font-mono font-bold bg-slate-50 transition placeholder:font-sans placeholder:font-normal"/>
+                                      </div>
+                                      
+                                      <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-emerald-600/30 relative z-10 text-lg flex justify-center gap-2 items-center"><IconUnlock /> Simpan ke Database Stok</button>
+                                  </form>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {}
+                      {(activeTab === 'report-admin' || activeTab === 'report-tech') && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                          
+                          {/* Filter Controls */}
+                          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 no-print">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                              <h3 className="font-black text-2xl flex items-center gap-3 text-slate-800">
+                                <div className="p-2 bg-slate-100 text-slate-700 rounded-xl">
+                                    {activeTab === 'report-admin' ? <IconChart /> : <IconUsers />}
+                                </div> 
+                                Pusat Laporan {activeTab === 'report-admin' ? 'Global Gudang' : 'Kinerja Teknisi'}
+                              </h3>
+                              <div className="flex gap-3 w-full md:w-auto">
+                                <button onClick={exportToExcel} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Unduh Excel
+                                </button>
+                                <button onClick={exportToPDF} className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition shadow-md flex items-center justify-center gap-2">
+                                    <IconPrinter /> Cetak PDF
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                              <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Periode</label>
+                                  <select value={reportType} onChange={e => setReportType(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
+                                    <option value="harian">Harian</option>
+                                    <option value="mingguan">Mingguan</option>
+                                    <option value="bulanan">Bulanan</option>
                                   </select>
                               </div>
-                          </div>
-                          <span className="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-bold">{displayedLogData.length} Data Ditampilkan</span>
-                        </div>
-                        <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
-                          <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-white text-slate-500 font-bold sticky top-0 shadow-sm z-10 text-xs uppercase tracking-wider border-b">
-                              <tr>
-                                <th className="p-4 pl-6">Waktu Transaksi</th>
-                                {activeTab === 'report-admin' && <th className="p-4">Teknisi Bertugas</th>}
-                                <th className="p-4">Detail Item (SN)</th>
-                                <th className="p-4">Material Kabel</th>
-                                <th className="p-4">Status & Keterangan</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {displayedLogData.map(d => (
-                                <tr key={d.id} className="hover:bg-slate-50/80 transition-colors">
-                                  <td className="p-4 pl-6">
-                                      <div className="font-mono text-slate-600 font-medium">{d.waktuScan.split(' ')[0]}</div>
-                                      <div className="text-xs text-slate-400 font-mono">{d.waktuScan.split(' ')[1]}</div>
-                                  </td>
-                                  {activeTab === 'report-admin' && <td className="p-4 font-black text-slate-700">{d.namaTeknisi}</td>}
-                                  <td className="p-4">
-                                    <div className="font-bold text-blue-700 bg-blue-50 inline-block px-2 py-0.5 rounded text-xs mb-1">{d.sn !== '-' ? d.sn : d.namaBarang}</div>
-                                    <div className="text-xs text-slate-500">{d.namaBarang !== 'Kabel Precon' ? d.namaBarang : ''}</div>
-                                  </td>
-                                  <td className="p-4 text-xs font-medium text-slate-600">{d.kabelPrecon !== '-' ? d.kabelPrecon : '-'}</td>
-                                  <td className="p-4">
-                                    <div className="text-xs text-slate-500 mb-2 max-w-[200px] truncate" title={d.keterangan}>{d.keterangan}</div>
-                                    <select 
-                                        value={d.status} 
-                                        onChange={(e) => updateStatus(d.id, e.target.value)} 
-                                        className={`text-[10px] font-black tracking-wider uppercase rounded-lg px-2 py-1 outline-none border cursor-pointer
-                                            ${d.status === 'INSTALL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
-                                              d.status === 'RETURN' ? 'bg-red-50 text-red-700 border-red-200' : 
-                                              'bg-amber-50 text-amber-700 border-amber-200'}`}
-                                    >
-                                      <option value="BELUM">BELUM</option>
-                                      <option value="INSTALL">INSTALL</option>
-                                      <option value="RETURN">RETURN</option>
-                                    </select>
-                                  </td>
-                                </tr>
-                              ))}
-                              {displayedLogData.length === 0 && (
-                                  <tr>
-                                      <td colSpan={activeTab === 'report-admin' ? 5 : 4} className="p-12 text-center text-slate-400">
-                                          Tidak ada log transaksi detail yang sesuai dengan filter.
-                                      </td>
-                                  </tr>
+                              
+                              {reportType === 'harian' && (
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Tanggal</label>
+                                      <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"/>
+                                  </div>
                               )}
-                            </tbody>
-                          </table>
+                              
+                              {(reportType === 'mingguan' || reportType === 'bulanan') && (
+                                <>
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Bulan</label>
+                                      <select value={reportMonth} onChange={e => setReportMonth(Number(e.target.value))} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
+                                        {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Tahun</label>
+                                      <select value={reportYear} onChange={e => setReportYear(Number(e.target.value))} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
+                                        {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                      </select>
+                                  </div>
+                                </>
+                              )}
+                              
+                              {reportType === 'mingguan' && (
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Pekan</label>
+                                    <select value={reportWeek} onChange={e => setReportWeek(Number(e.target.value))} className="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
+                                      {[1, 2, 3, 4, 5].map(w => <option key={w} value={w}>Minggu ke-{w}</option>)}
+                                    </select>
+                                </div>
+                              )}
+
+                              {activeTab === 'report-tech' && (
+                                <div className="md:col-span-full">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 px-1">Target Teknisi</label>
+                                    <select value={reportTech} onChange={e => setReportTech(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 cursor-pointer">
+                                      {TECHNICIANS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Collapsible Summary Table */}
+                          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 mb-6 print-container break-inside-avoid">
+                            <div className="p-6 md:p-8 flex flex-col items-center border-b border-slate-100 relative">
+                                <h4 className="font-black text-2xl uppercase tracking-widest text-slate-800 text-center">
+                                Ringkasan {activeTab === 'report-admin' ? 'Global Gudang' : `Kinerja Teknisi: ${reportTech}`}
+                                </h4>
+                                <p className="text-sm font-medium text-slate-500 mt-2 bg-slate-50 inline-block px-4 py-1.5 rounded-full border mb-4">
+                                    Periode: <span className="font-bold text-slate-700">{reportType === 'harian' ? reportDate : reportType === 'mingguan' ? `Minggu ${reportWeek}, ${MONTHS[reportMonth]} ${reportYear}` : `${MONTHS[reportMonth]} ${reportYear}`}</span>
+                                </p>
+                                
+                                <button 
+                                    onClick={() => setShowSummaryTable(!showSummaryTable)} 
+                                    className="no-print absolute bottom-0 translate-y-1/2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-6 py-2 rounded-full shadow-sm border border-blue-200 flex items-center gap-2 transition"
+                                >
+                                    <IconEye /> {showSummaryTable ? 'Sembunyikan Tabel Ringkasan' : 'Tampilkan Tabel Ringkasan'}
+                                </button>
+                            </div>
+                            
+                            {showSummaryTable && (
+                                <div className="overflow-x-auto rounded-b-3xl animate-in slide-in-from-top-4 p-4">
+                                  <table className="w-full text-sm text-left border rounded-xl overflow-hidden">
+                                    <thead className="bg-slate-50 border-b">
+                                      <tr>
+                                        <th className="p-4 border-r text-xs font-black uppercase tracking-wider text-slate-500">Nama Barang / Material</th>
+                                        <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-slate-500 w-24">Satuan</th>
+                                        <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 w-32">Total Keluar</th>
+                                        <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 w-32">Terpasang</th>
+                                        <th className="p-4 border-r text-center text-xs font-black uppercase tracking-wider text-amber-800 bg-amber-100 w-32">Pending</th>
+                                        <th className="p-4 text-center text-xs font-black uppercase tracking-wider text-red-800 bg-red-100 w-32">Return</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                      {Object.entries(reportAdminStats).filter(([_, s]) => s.total > 0).map(([item, s]) => (
+                                        <tr key={item} className="hover:bg-slate-50 transition-colors">
+                                          <td className="p-4 border-r font-bold text-slate-700 text-xs">{item}</td>
+                                          <td className="p-4 border-r text-center text-xs font-medium text-slate-500">{s.unit}</td>
+                                          <td className="p-4 border-r text-center font-black text-lg bg-slate-50/50">{s.total}</td>
+                                          <td className="p-4 border-r text-center font-black text-emerald-700 bg-emerald-50/50 text-lg">{s.install}</td>
+                                          <td className="p-4 border-r text-center font-black text-amber-700 bg-amber-50/50 text-lg">{s.belum}</td>
+                                          <td className="p-4 text-center font-black text-red-700 bg-red-50/50 text-lg">{s.return}</td>
+                                        </tr>
+                                      ))}
+                                      {Object.entries(reportAdminStats).filter(([_, s]) => s.total > 0).length === 0 && (
+                                        <tr>
+                                            <td colSpan="6" className="p-12 text-center text-slate-400">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <IconChart />
+                                                    <p className="mt-2 font-medium">Tidak ada data transaksi untuk periode ini.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                            )}
+                          </div>
+
+                          {/* Detailed Log Table */}
+                          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden print-container mt-12">
+                            <div className="p-5 bg-slate-50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                  <h4 className="font-black text-slate-800">Rincian Log Transaksi</h4>
+                                  <div className="flex items-center gap-2 no-print">
+                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filter:</span>
+                                      <select 
+                                          value={reportStatusFilter} 
+                                          onChange={e => setReportStatusFilter(e.target.value)}
+                                          className="text-xs font-bold border-2 border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 cursor-pointer text-slate-700 bg-white shadow-sm"
+                                      >
+                                          <option value="ALL">Semua Status</option>
+                                          <option value="INSTALL">INSTALL</option>
+                                          <option value="BELUM">BELUM (Pending)</option>
+                                          <option value="RETURN">RETURN</option>
+                                      </select>
+                                  </div>
+                              </div>
+                              <span className="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-bold">{displayedLogData.length} Data Ditampilkan</span>
+                            </div>
+                            <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
+                              <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="bg-white text-slate-500 font-bold sticky top-0 shadow-sm z-10 text-xs uppercase tracking-wider border-b">
+                                  <tr>
+                                    <th className="p-4 pl-6">Waktu Transaksi</th>
+                                    {activeTab === 'report-admin' && <th className="p-4">Teknisi Bertugas</th>}
+                                    <th className="p-4">Detail Item (SN)</th>
+                                    <th className="p-4">Material Kabel</th>
+                                    <th className="p-4">Status & Keterangan</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {displayedLogData.map(d => (
+                                    <tr key={d.id} className="hover:bg-slate-50/80 transition-colors">
+                                      <td className="p-4 pl-6">
+                                          <div className="font-mono text-slate-600 font-medium">{d.waktuScan.split(' ')[0]}</div>
+                                          <div className="text-xs text-slate-400 font-mono">{d.waktuScan.split(' ')[1]}</div>
+                                      </td>
+                                      {activeTab === 'report-admin' && <td className="p-4 font-black text-slate-700">{d.namaTeknisi}</td>}
+                                      <td className="p-4">
+                                        <div className="font-bold text-blue-700 bg-blue-50 inline-block px-2 py-0.5 rounded text-xs mb-1">{d.sn !== '-' ? d.sn : d.namaBarang}</div>
+                                        <div className="text-xs text-slate-500">{d.namaBarang !== 'Kabel Precon' ? d.namaBarang : ''}</div>
+                                      </td>
+                                      <td className="p-4 text-xs font-medium text-slate-600">{d.kabelPrecon !== '-' ? d.kabelPrecon : '-'}</td>
+                                      <td className="p-4">
+                                        <div className="text-xs text-slate-500 mb-2 max-w-[200px] truncate" title={d.keterangan}>{d.keterangan}</div>
+                                        <select 
+                                            value={d.status} 
+                                            onChange={(e) => updateStatus(d.id, e.target.value)} 
+                                            className={`text-[10px] font-black tracking-wider uppercase rounded-lg px-2 py-1 outline-none border cursor-pointer
+                                                ${d.status === 'INSTALL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                                                  d.status === 'RETURN' ? 'bg-red-50 text-red-700 border-red-200' : 
+                                                  'bg-amber-50 text-amber-700 border-amber-200'}`}
+                                        >
+                                          <option value="BELUM">BELUM</option>
+                                          <option value="INSTALL">INSTALL</option>
+                                          <option value="RETURN">RETURN</option>
+                                        </select>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {displayedLogData.length === 0 && (
+                                      <tr>
+                                          <td colSpan={activeTab === 'report-admin' ? 5 : 4} className="p-12 text-center text-slate-400">
+                                              Tidak ada log transaksi detail yang sesuai dengan filter.
+                                          </td>
+                                      </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
                         </div>
-                      </div>
+                      )}
 
-                    </div>
-                  )}
-
-                </main>
+                    </main>
+                  </div>
               </div>
             </div>
           );
