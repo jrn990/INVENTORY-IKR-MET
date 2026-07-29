@@ -246,10 +246,13 @@
             try {
                 if (window.Tone) {
                     await Tone.start();
-                    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-                    synth.volume.value = -10;
-                    const now = Tone.now();
-                    synth.triggerAttackRelease(["E5", "G5", "C6"], "8n", now);
+                    // Suara beep scanner digital yang tajam dan singkat (Square Wave)
+                    const synth = new Tone.Synth({
+                        oscillator: { type: "square" },
+                        envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.01 }
+                    }).toDestination();
+                    synth.volume.value = -15; // Volume disesuaikan agar tidak menyakitkan telinga
+                    synth.triggerAttackRelease("C6", "16n");
                 }
             } catch(e) { console.log("Audio play prevented", e); }
           };
@@ -258,9 +261,15 @@
             try {
                 if (window.Tone) {
                     await Tone.start();
-                    const synth = new Tone.Synth().toDestination();
-                    synth.volume.value = -5;
-                    synth.triggerAttackRelease("C3", "4n");
+                    // Suara error "tet-tot" rendah yang tegas (Sawtooth Wave)
+                    const synth = new Tone.Synth({
+                        oscillator: { type: "sawtooth" },
+                        envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }
+                    }).toDestination();
+                    synth.volume.value = -10;
+                    const now = Tone.now();
+                    synth.triggerAttackRelease("G2", "16n", now);
+                    synth.triggerAttackRelease("G2", "16n", now + 0.15);
                 }
             } catch(e) { console.log("Audio play prevented", e); }
           };
